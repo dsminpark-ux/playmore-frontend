@@ -1528,7 +1528,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   }
 
   return (
-    <div className="theme-page-background min-h-screen pb-24">
+    <div className="theme-page-background min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <ProgressPersistence snapshot={progressPersistenceSnapshot} />
       <header className="bg-[#fff8fc]/95 backdrop-blur-xl sticky top-0 z-20 border-b border-[#eadff0]">
         <div className="max-w-6xl mx-auto px-4 sm:px-5 py-3 sm:py-4">
@@ -1935,7 +1935,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 {purchaseMessage}
               </div>
             )}
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
               <div>
                 <h2 className="font-display font-800 text-2xl text-[#241335]">Search results</h2>
                 <p className="text-xs text-[#75647e] mt-1">
@@ -2118,7 +2118,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 required
                 className="w-full rounded-xl bg-[#fffdf9] border border-[#eadff0] px-4 py-3 text-sm text-[#241335] placeholder-[#a28da9] focus:outline-none focus:border-[#8b5cf6]"
               />
-              <div className="grid grid-cols-1 min-[360px]:grid-cols-2 gap-3 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 <div>
                   <label className="block text-[10px] uppercase tracking-wide font-600 text-[#75647e] mb-2">Sport</label>
                   <input
@@ -2708,7 +2708,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           <div className="grid md:grid-cols-[280px_minmax(0,1fr)] bg-white border border-[#eadff0] rounded-3xl overflow-hidden min-h-[560px]">
             <aside className="border-b md:border-b-0 md:border-r border-[#eadff0]">
               <div className="px-5 py-4 border-b border-[#eadff0] font-display font-700 text-sm text-[#241335]">Conversations</div>
-              <div className="flex md:block overflow-x-auto">
+              <div className="flex md:block min-w-0 overflow-x-auto">
                 {conversations.map(conversation => {
                   const conversationMessages = messages[conversation.id] ?? []
                   const latestMessage = conversationMessages[conversationMessages.length - 1]
@@ -2716,7 +2716,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                     <button
                       key={conversation.id}
                       onClick={() => setSelectedConversation(conversation.id)}
-                      className={`min-w-64 md:min-w-0 w-full text-left flex items-center gap-3 p-4 border-r md:border-r-0 md:border-b border-[#eee3f1] transition-colors ${
+                      className={`min-w-64 shrink-0 md:min-w-0 w-full text-left flex items-center gap-3 p-4 border-r md:border-r-0 md:border-b border-[#eee3f1] transition-colors ${
                         selectedConversation === conversation.id ? 'bg-[#faf5ff]' : 'hover:bg-[#fffdf9]'
                       }`}
                     >
@@ -3281,7 +3281,7 @@ function BottomNavButton({ label, icon, active = false, onClick }: {
       className={`min-w-0 flex flex-col items-center justify-center gap-1 px-0.5 py-1.5 transition-colors ${active ? 'text-[#8b5cf6]' : 'text-[#75647e] hover:text-[#241335]'}`}
     >
       <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5 sm:w-6 sm:h-6">{paths[icon]}</svg>
-      <span className="text-[8px] sm:text-[10px] font-600 truncate w-full text-center">{label}</span>
+      <span className="text-[8px] sm:text-[10px] font-600 w-full text-center leading-tight">{label}</span>
     </button>
   )
 }
@@ -3447,7 +3447,7 @@ function ItemCard({ item, mode, onChat, onViewImage, meetupLocation, markedSold,
           </button>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <div className="flex items-center gap-1">
               <CoinIcon className="w-4 h-4" />
