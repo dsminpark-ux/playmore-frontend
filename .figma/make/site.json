@@ -1,0 +1,10 @@
+{
+  "description": "Connect with buyers and sellers to exchange sports equipment while earning coins for every transaction through a user-friendly dashboard.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

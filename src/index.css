@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --radius-DEFAULT: var(--radius);
+}
+
+:root {
+  --background: #fff8fc;
+  --foreground: #241335;
+  --card: #ffffff;
+  --card-foreground: #241335;
+  --primary: #8b5cf6;
+  --primary-foreground: #ffffff;
+  --secondary: #f7eff9;
+  --secondary-foreground: #241335;
+  --muted: #f7eff9;
+  --muted-foreground: #75647e;
+  --accent: #ec4899;
+  --accent-foreground: #ffffff;
+  --border: #e8d9ee;
+  --ring: #8b5cf6;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  overflow-x: hidden;
+}
+
+body {
+  min-width: 320px;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 10% 0%, rgb(245 158 11 / 8%), transparent 28rem),
+    radial-gradient(circle at 90% 8%, rgb(236 72 153 / 9%), transparent 30rem),
+    radial-gradient(circle at 65% 100%, rgb(14 165 233 / 7%), transparent 32rem),
+    var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img {
+  max-width: 100%;
+}
+
+.mobile-safe-nav {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+.font-display {
+  font-family: 'Outfit', sans-serif;
+}
+
+.brand-gradient {
+  background-image: linear-gradient(110deg, #f59e0b 0%, #ec4899 36%, #7c3aed 68%, #0ea5e9 100%);
+}
+
+.brand-text-gradient {
+  background-image: linear-gradient(100deg, #f59e0b 0%, #ec4899 38%, #7c3aed 68%, #0ea5e9 100%);
+  background-clip: text;
+  color: transparent;
+}
+
+.theme-page-background {
+  background:
+    radial-gradient(circle at 8% 12%, rgb(245 158 11 / 12%), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgb(236 72 153 / 12%), transparent 30rem),
+    radial-gradient(circle at 78% 88%, rgb(14 165 233 / 10%), transparent 32rem),
+    linear-gradient(135deg, #fffaf2 0%, #fff7fb 42%, #f7f3ff 72%, #f2fbff 100%);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
