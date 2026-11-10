@@ -119,6 +119,10 @@ interface Conversation {
 }
 
 interface DonationItem {
+  estimatedCashValue?: number
+  estimatedCoinValue?: number
+  ownerCashValue?: number
+  ownerCoinValue?: number
   id: number
   item: string
   sport: string
@@ -242,6 +246,46 @@ const CASH_VALUE_BY_CATEGORY: Record<string, number> = {
   'Racket or bat': 95,
   'Training equipment': 55,
   Other: 45,
+}
+
+// Community points use the existing listing suggestion ratio, not a cash redemption rate.
+const COINS_PER_DOLLAR = 3
+
+function estimateEquipmentValue(category: string, condition: string, age = 0) {
+  const factors: Record<string, number> = { 'Like New': 0.9, 'Very Good': 0.75, Good: 0.6, Fair: 0.4 }
+  const cash = Math.max(5, Math.round((CASH_VALUE_BY_CATEGORY[category] ?? 45) * (factors[condition] ?? 0.6) * Math.max(0.55, 1 - Math.max(0, age) * 0.06)))
+  return { cash, coins: Math.max(10, Math.round(cash * COINS_PER_DOLLAR)) }
+}
+
+function EquipmentValuation({ cash, coins, ownerValue, onOwnerValueChange }: {
+  cash: number
+  coins: number
+  ownerValue: string | null
+  onOwnerValueChange: (value: string | null) => void
+}) {
+  return (
+    <section className="mt-4 rounded-2xl border border-[#c4b5fd] bg-[#faf5ff] p-4">
+      <h3 className="font-display font-800 text-[#241335]">Estimated equipment value</h3>
+      <div className="mt-3 grid grid-cols-2 gap-3" aria-live="polite">
+        <div className="rounded-xl bg-white p-3"><div className="text-xs text-[#75647e]">App coins</div><div className="mt-1 text-xl font-800 text-[#7c3aed]">{coins.toLocaleString()} coins</div></div>
+        <div className="rounded-xl bg-white p-3"><div className="text-xs text-[#75647e]">Real-world value</div><div className="mt-1 text-xl font-800 text-[#241335]">${cash.toFixed(2)} USD</div></div>
+      </div>
+      <p className="mt-3 text-[11px] leading-relaxed text-[#75647e]">Sample estimate based on equipment type and condition. Photos are not analyzed by AI. Each $1 of estimated value suggests 3 community coins; coins cannot be redeemed for cash.</p>
+      <label className="mt-4 flex items-center gap-2 text-xs font-700 text-[#57445f]">
+        <input type="checkbox" checked={ownerValue !== null} onChange={event => onOwnerValueChange(event.target.checked ? '' : null)} className="accent-[#7c3aed]" />
+        Think this estimate is unreasonable? Suggest your own price.
+      </label>
+      {ownerValue !== null && (
+        <div className="mt-3">
+          <label className="block text-xs font-700 text-[#57445f]">Your estimated price (USD)
+            <input type="number" min="0.01" max="1000000" step="0.01" required value={ownerValue} onChange={event => onOwnerValueChange(event.target.value)} placeholder="Enter your price" className="mt-2 block w-full rounded-xl border border-[#eadff0] bg-white px-3 py-3 text-sm text-[#241335]" />
+          </label>
+          <p className="mt-2 text-xs text-[#7c3aed]" aria-live="polite">{Number(ownerValue) > 0 ? `Your suggested value: ${Math.round(Number(ownerValue) * COINS_PER_DOLLAR).toLocaleString()} coins` : 'Enter a price to see its coin equivalent.'}</p>
+          <p className="mt-1 text-[11px] text-[#75647e]">Your suggestion is saved separately from the app estimate. Donations remain free; this does not award coins.</p>
+        </div>
+      )}
+    </section>
+  )
 }
 
 const MOCK_USER: User = {
@@ -1141,6 +1185,9 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [donationLocation, setDonationLocation] = useState('')
   const [donationNote, setDonationNote] = useState('')
   const [donationImages, setDonationImages] = useState<string[]>([])
+  const [donationCategory, setDonationCategory] = useState('Other')
+  const [donationOwnerValue, setDonationOwnerValue] = useState<string | null>(null)
+  const donationEstimate = estimateEquipmentValue(donationCategory, donationCondition)
   const [donationPhotoIndexes, setDonationPhotoIndexes] = useState<Record<number, number>>({})
   const [editingDonationLocation, setEditingDonationLocation] = useState<number | null>(null)
   const [donationLocationDraft, setDonationLocationDraft] = useState('')
@@ -1417,6 +1464,14 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
         image: images[0],
         images,
         claimedBy: undefined,
+        ...(donationImages.length > 0 ? {
+          estimatedCashValue: donationEstimate.cash,
+          estimatedCoinValue: donationEstimate.coins,
+          ...(donationOwnerValue !== null && Number(donationOwnerValue) > 0 ? {
+            ownerCashValue: Number(donationOwnerValue),
+            ownerCoinValue: Math.round(Number(donationOwnerValue) * COINS_PER_DOLLAR),
+          } : {}),
+        } : {}),
       },
       ...current,
     ])
@@ -1426,6 +1481,8 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     setDonationLocation('')
     setDonationNote('')
     setDonationImages([])
+    setDonationCategory('Other')
+    setDonationOwnerValue(null)
     setDonationFormOpen(false)
   }
 
@@ -1438,10 +1495,8 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   }
 
   const generateListingSuggestions = () => {
-    const conditionFactor: Record<string, number> = { 'Like New': 0.9, 'Very Good': 0.75, Good: 0.6, Fair: 0.4 }
     const age = Number.parseFloat(listingAge) || 0
-    const ageFactor = Math.max(0.55, 1 - age * 0.06)
-    const cash = Math.max(5, Math.round((CASH_VALUE_BY_CATEGORY[listingCategory] ?? 45) * (conditionFactor[listingCondition] ?? 0.6) * ageFactor))
+    const { cash } = estimateEquipmentValue(listingCategory, listingCondition, age)
     const titleParts = [listingBrand.trim(), listingCategory].filter(Boolean)
     const knownDetails = [
       listingColor.trim() && `${listingColor.trim()} color`,
@@ -2199,6 +2254,16 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                   </div>
                 )}
               </div>
+              {donationImages.length > 0 && (
+                <>
+                  <label className="mt-4 block text-xs font-700 text-[#57445f]">Equipment type for estimate
+                    <select value={donationCategory} onChange={event => setDonationCategory(event.target.value)} className="mt-2 w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-3 py-3 text-sm text-[#241335]">
+                      {Object.keys(CASH_VALUE_BY_CATEGORY).map(category => <option key={category}>{category}</option>)}
+                    </select>
+                  </label>
+                  <EquipmentValuation cash={donationEstimate.cash} coins={donationEstimate.coins} ownerValue={donationOwnerValue} onOwnerValueChange={setDonationOwnerValue} />
+                </>
+              )}
               <button type="submit" className="w-full mt-4 rounded-xl brand-gradient py-3 text-sm font-display font-700 text-white hover:brightness-110 transition-colors">List for donation</button>
             </form>
             )}
@@ -2268,6 +2333,13 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                       </div>
                       <h3 className="font-display font-800 text-lg text-[#241335] mt-2">{donation.item}</h3>
                       <p className="text-xs leading-relaxed text-[#75647e] mt-2">{donation.note}</p>
+                      {donation.estimatedCashValue !== undefined && (
+                        <div className="mt-3 rounded-xl bg-[#faf5ff] p-3 text-xs text-[#57445f]">
+                          <p>App estimate: {donation.estimatedCoinValue?.toLocaleString()} coins / ${donation.estimatedCashValue.toFixed(2)} USD</p>
+                          {donation.ownerCashValue !== undefined && <p className="mt-1 font-700">Owner's suggested value: {donation.ownerCoinValue?.toLocaleString()} coins / ${donation.ownerCashValue.toFixed(2)} USD</p>}
+                          <p className="mt-1 text-[10px] text-[#75647e]">Free donation · Values are informational</p>
+                        </div>
+                      )}
                       <button type="button" onClick={() => setPublicDonor(donation.donor)} className="mt-2 text-[10px] font-700 text-[#7c3aed] hover:underline">
                         {getDonorRating(donation.donor).count > 0
                           ? `★ ${getDonorRating(donation.donor).average.toFixed(1)} (${getDonorRating(donation.donor).count} ratings)`
