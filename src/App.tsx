@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { LocationAutocomplete } from './LocationAutocomplete'
 
 type View = 'landing' | 'signin' | 'signup' | 'dashboard'
 type Tab = 'bought' | 'sold'
@@ -893,7 +894,7 @@ function AuthPage({
           <PlaymoreLogo size="md" />
         </div>
 
-        <div className="grid lg:grid-cols-[1.1fr_0.9fr] bg-[#ffffff] border border-[#eadff0] rounded-3xl overflow-hidden shadow-xl shadow-slate-200/40">
+        <div className="grid lg:grid-cols-[1.1fr_0.9fr] bg-[#ffffff] border border-[#eadff0] rounded-3xl lg:overflow-hidden shadow-xl shadow-slate-200/40">
           <section className="relative hidden bg-gradient-to-br from-[#241335] via-[#5b217a] to-[#0e7490] p-8 sm:p-10 text-white overflow-hidden lg:block">
             <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-[#ec4899]/20 blur-3xl" />
             <div className="relative">
@@ -1003,23 +1004,11 @@ function AuthPage({
             {isSignUp && (
               <div>
                 <label className="block text-xs font-medium text-[#75647e] mb-2 uppercase tracking-wide">Your meetup area</label>
-                <div className="relative">
-                  <svg viewBox="0 0 20 20" fill="none" className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8b5cf6]" aria-hidden="true">
-                    <path d="M10 18s6-5.4 6-10A6 6 0 1 0 4 8c0 4.6 6 10 6 10Z" stroke="currentColor" strokeWidth="1.5" />
-                    <circle cx="10" cy="8" r="2" stroke="currentColor" strokeWidth="1.5" />
-                  </svg>
-                  <input
-                    type="text"
-                    required
-                    placeholder="City or neighborhood"
-                    value={formData.location}
-                    onChange={e => onChange({ ...formData, location: e.target.value })}
-                    autoComplete="address-level2"
-                    pattern=".*\S.*"
-                    title="Enter your city or neighborhood"
-                    className="w-full bg-[#fffdf9] border border-[#eadff0] rounded-xl py-3 pl-11 pr-4 text-[#241335] text-sm placeholder-[#a28da9] focus:outline-none focus:border-[#8b5cf6] transition-colors"
-                  />
-                </div>
+                <LocationAutocomplete
+                  value={formData.location}
+                  onChange={location => onChange({ ...formData, location })}
+                  inputClassName="w-full bg-[#fffdf9] border border-[#eadff0] rounded-xl py-3 pl-11 pr-10 text-[#241335] text-sm placeholder-[#a28da9] focus:outline-none focus:border-[#8b5cf6] transition-colors"
+                />
                 <p className="mt-2 text-xs leading-relaxed text-[#75647e]">Share a general area only—not your exact address. Buyers use this to plan a safe public meetup.</p>
               </div>
             )}
