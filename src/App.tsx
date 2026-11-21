@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
+import { CameraCapture } from './CameraCapture'
 import { LocationAutocomplete } from './LocationAutocomplete'
 
 type View = 'landing' | 'signin' | 'signup' | 'dashboard'
-type Tab = 'bought' | 'sold'
-type DashboardScreen = 'home' | 'search' | 'donations' | 'bought' | 'sold' | 'coins' | 'messages' | 'profile'
+type Tab = 'bought' | 'sold' | 'donating'
+type DashboardScreen = 'home' | 'search' | 'donations' | Tab | 'coins' | 'messages' | 'profile'
 type FoundationApplicantType = 'referred-family' | 'playmore-family' | 'requesting-for-someone'
 type FoundationApplicationStatus = 'pending' | 'approved' | 'denied'
 
@@ -67,17 +68,6 @@ interface UserEquipmentListing extends MarketplaceItem {
   status: 'active' | 'completed'
 }
 
-interface DonorReview {
-  id: number
-  exchangeKey: string
-  donor: string
-  recipientEmail: string
-  rating: number
-  review: string
-  itemName: string
-  date: string
-}
-
 interface CoinTransaction {
   id: number
   amount: number
@@ -119,6 +109,7 @@ interface Conversation {
 }
 
 interface DonationItem {
+  ownerEmail?: string
   estimatedCashValue?: number
   estimatedCoinValue?: number
   ownerCashValue?: number
@@ -153,7 +144,7 @@ interface DashboardProgress {
   foundationRequestedItemIds: number[]
   pendingExchangeItemIds: number[]
   userEquipmentListings: UserEquipmentListing[]
-  donorReviews: DonorReview[]
+  earnedAchievements: string[]
   coinTransactions: CoinTransaction[]
 }
 
@@ -230,12 +221,6 @@ const EQUIPMENT_REQUEST_OPTIONS = [
   'Rackets and bats',
   'Training equipment',
   'Other',
-]
-const SAMPLE_DONOR_REVIEWS: DonorReview[] = [
-  { id: 1, exchangeKey: 'sample-1', donor: 'Marcus J.', recipientEmail: 'sample1@playmore.org', rating: 5, review: 'The football was exactly as described and pickup was easy.', itemName: 'Pro Leather American Football', date: 'Sep 18, 2026' },
-  { id: 2, exchangeKey: 'sample-2', donor: 'Marcus J.', recipientEmail: 'sample2@playmore.org', rating: 4, review: 'Reliable provider and great communication.', itemName: 'Training football', date: 'Aug 30, 2026' },
-  { id: 3, exchangeKey: 'sample-3', donor: 'Sam K.', recipientEmail: 'sample3@playmore.org', rating: 5, review: 'Helmet was clean and ready to use.', itemName: 'Cycling helmet', date: 'Sep 4, 2026' },
-  { id: 4, exchangeKey: 'sample-4', donor: 'Alex T.', recipientEmail: 'sample4@playmore.org', rating: 5, review: '', itemName: 'Training mat', date: 'Aug 22, 2026' },
 ]
 const CASH_VALUE_BY_CATEGORY: Record<string, number> = {
   Ball: 25,
@@ -1139,8 +1124,9 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [foundationNeed, setFoundationNeed] = useState('')
   const [pendingExchangeItemIds, setPendingExchangeItemIds] = useState<number[]>(savedProgress.pendingExchangeItemIds ?? [])
   const [userEquipmentListings, setUserEquipmentListings] = useState<UserEquipmentListing[]>(savedProgress.userEquipmentListings ?? [])
-  const [donorReviews, setDonorReviews] = useState<DonorReview[]>(savedProgress.donorReviews ?? SAMPLE_DONOR_REVIEWS)
   const [coinTransactions, setCoinTransactions] = useState<CoinTransaction[]>(savedProgress.coinTransactions ?? [])
+  const [earnedAchievements, setEarnedAchievements] = useState<string[]>(savedProgress.earnedAchievements ?? [])
+  const [awardNotice, setAwardNotice] = useState(false)
   const [listingFormOpen, setListingFormOpen] = useState(false)
   const [listingImages, setListingImages] = useState<string[]>([])
   const [listingCategory, setListingCategory] = useState('Ball')
@@ -1153,10 +1139,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [listingDescription, setListingDescription] = useState('')
   const [listingCashEstimate, setListingCashEstimate] = useState(0)
   const [listingCoinValue, setListingCoinValue] = useState(0)
-  const [publicDonor, setPublicDonor] = useState<string | null>(null)
-  const [ratingExchange, setRatingExchange] = useState<{ exchangeKey: string; donor: string; itemName: string } | null>(null)
-  const [ratingValue, setRatingValue] = useState(0)
-  const [ratingReview, setRatingReview] = useState('')
   const [purchaseMessage, setPurchaseMessage] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState(user.name)
@@ -1204,6 +1186,22 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [priceFilter, setPriceFilter] = useState('All')
   const [sortFilter, setSortFilter] = useState('Newest')
 
+  const donationCount = donations.filter(item => item.ownerEmail === user.email).length
+  const achievements = [
+    { id: 'first-gift', icon: '\u{1F381}', name: 'First act of kindness', description: 'Post your first free donation.', value: donationCount, goal: 1 },
+    { id: 'generous-heart', icon: '\u{1F3C5}', name: 'Generous heart', description: 'Post 3 free equipment donations.', value: donationCount, goal: 3 },
+    { id: 'champion', icon: '\u{1F3C6}', name: 'Community champion', description: 'Post 10 free equipment donations.', value: donationCount, goal: 10 },
+    { id: 'second-life', icon: '\u{1F331}', name: 'A second life', description: 'Complete your first Community Exchange pickup.', value: purchasedItems.length, goal: 1 },
+    { id: 'sharer', icon: '\u{1F396}\uFE0F', name: 'Gear sharer', description: 'Publish your first equipment listing.', value: userEquipmentListings.length, goal: 1 },
+    { id: 'team-player', icon: '\u{1F91D}', name: 'Team player', description: 'Complete a handoff from your equipment listings.', value: userEquipmentListings.filter(item => item.status === 'completed').length, goal: 1 },
+  ]
+  const newlyEarnedKey = achievements.filter(award => award.value >= award.goal && !earnedAchievements.includes(award.id)).map(award => award.id).join(',')
+  useEffect(() => {
+    if (!newlyEarnedKey) return
+    setEarnedAchievements(current => [...new Set([...current, ...newlyEarnedKey.split(',')])])
+    setAwardNotice(true)
+  }, [newlyEarnedKey])
+
   const progressPersistenceSnapshot = JSON.stringify({
     email: user.email,
     progress: {
@@ -1218,7 +1216,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
       foundationRequestedItemIds,
       pendingExchangeItemIds,
       userEquipmentListings,
-      donorReviews,
+      earnedAchievements,
       coinTransactions,
     } satisfies DashboardProgress,
   })
@@ -1265,6 +1263,11 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
         })
     : []
   const soldItems = SOLD_ITEMS.filter(item => markedSoldItemIds.includes(item.id))
+  const isOwnDonation = (donation: DonationItem) => donation.ownerEmail
+    ? donation.ownerEmail.trim().toLowerCase() === user.email.trim().toLowerCase()
+    : donation.donor === user.name
+  const ownDonations = donations.filter(isOwnDonation)
+  const nearbyDonations = donations.filter(donation => !isOwnDonation(donation))
   const activeListings = SOLD_ITEMS.filter(item => !markedSoldItemIds.includes(item.id))
   const activityItems = activeScreen === 'sold' ? soldItems : BOUGHT_ITEMS
   const items = activityItems
@@ -1283,14 +1286,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     soldItems.reduce((sum, item) => sum + item.coins, 0) +
     userEquipmentListings.filter(item => item.status === 'completed').reduce((sum, item) => sum + item.coinCost, 0)
   const completedSalesCount = soldItems.length + userEquipmentListings.filter(item => item.status === 'completed').length
-  const getDonorRating = (donor?: string) => {
-    const reviews = donorReviews.filter(review => review.donor === donor)
-    if (reviews.length === 0) return { average: 0, count: 0 }
-    return {
-      average: reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length,
-      count: reviews.length,
-    }
-  }
 
   const changeTab = (nextTab: Tab) => {
     onTabChange(nextTab)
@@ -1299,7 +1294,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
 
   const navigateTo = (screen: DashboardScreen) => {
     setActiveScreen(screen)
-    if (screen === 'bought' || screen === 'sold') {
+    if (screen === 'bought' || screen === 'sold' || screen === 'donating') {
       changeTab(screen)
     }
     window.scrollTo({ top: 0, behavior: 'instant' })
@@ -1460,6 +1455,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
         location,
         note: donationNote.trim() || 'Free to an athlete or community group who can use it.',
         donor: user.name,
+        ownerEmail: user.email,
         avatar: user.avatar,
         image: images[0],
         images,
@@ -1484,6 +1480,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     setDonationCategory('Other')
     setDonationOwnerValue(null)
     setDonationFormOpen(false)
+    navigateTo('donating')
   }
 
   const addDonationImages = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1553,27 +1550,11 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     setListingCoinValue(0)
   }
 
-  const submitDonorReview = () => {
-    if (!ratingExchange || ratingValue < 1) return
-    if (donorReviews.some(review => review.exchangeKey === ratingExchange.exchangeKey && review.recipientEmail === user.email)) return
-    setDonorReviews(current => [{
-      id: Date.now(),
-      exchangeKey: ratingExchange.exchangeKey,
-      donor: ratingExchange.donor,
-      recipientEmail: user.email,
-      rating: ratingValue,
-      review: ratingReview.trim(),
-      itemName: ratingExchange.itemName,
-      date: 'Just now',
-    }, ...current])
-    setRatingExchange(null)
-    setRatingValue(0)
-    setRatingReview('')
-  }
 
   return (
     <div className="theme-page-background min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <ProgressPersistence snapshot={progressPersistenceSnapshot} />
+      {awardNotice && <div role="status" className="fixed top-20 left-4 right-4 z-40 mx-auto flex max-w-md gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-lg"><button type="button" onClick={() => { navigateTo('profile'); setAwardNotice(false) }} className="flex-1 text-left text-sm font-700 text-amber-900">&#127942; Achievement unlocked! View your trophy cabinet.</button><button type="button" onClick={() => setAwardNotice(false)} aria-label="Dismiss achievement notification">Close</button></div>}
       <header className="bg-[#fff8fc]/95 backdrop-blur-xl sticky top-0 z-20 border-b border-[#eadff0]">
         <div className="max-w-6xl mx-auto px-4 sm:px-5 py-3 sm:py-4">
           <div className="flex items-center justify-between mb-4">
@@ -1848,6 +1829,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 {listingImages.length ? `${listingImages.length} photo${listingImages.length === 1 ? '' : 's'} uploaded · Replace photos` : 'Upload one or more equipment photos'}
                 <input type="file" accept="image/*" multiple onChange={addListingImages} className="sr-only" />
               </label>
+              <CameraCapture disabled={listingImages.length >= MAX_DONATION_IMAGES} onCapture={photo => setListingImages(current => [...current, photo].slice(0, MAX_DONATION_IMAGES))} />
               {listingImages.length > 0 && (
                 <div className="mt-3 flex gap-2 overflow-x-auto">
                   {listingImages.map((image, index) => <img key={image} src={image} alt={`Listing view ${index + 1}`} className="h-20 w-20 flex-none rounded-lg object-cover" />)}
@@ -2069,8 +2051,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                     onBuy={() => buyWithCoins(item)}
                     onFoundationRequest={() => requestThroughFoundation(item)}
                     foundationRequested={foundationRequestedItemIds.includes(item.id)}
-                    donorRating={getDonorRating(item.seller)}
-                    onViewDonor={() => item.seller && setPublicDonor(item.seller)}
                     onChat={() => item.seller && openChatWith(item.seller, item.seller.split(' ').map(part => part[0]).join(''), item.sport)}
                     onViewImage={() => setImageViewer({ title: item.name, images: [item.image], index: 0 })}
                   />
@@ -2230,6 +2210,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                   onChange={addDonationImages}
                   className="sr-only"
                 />
+                <CameraCapture disabled={donationImages.length >= MAX_DONATION_IMAGES} onCapture={photo => setDonationImages(current => [...current, photo].slice(0, MAX_DONATION_IMAGES))} />
                 <p className="mt-2 text-[10px] leading-relaxed text-[#75647e]">Show the front, back, sides, and any signs of wear. You can add up to 6 images.</p>
                 {donationImages.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mt-3">
@@ -2275,10 +2256,11 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                   <h2 className="font-display font-800 text-xl text-[#241335]">Donations near you</h2>
                   <p className="text-xs text-[#75647e] mt-1">Contact the donor to arrange a pickup.</p>
                 </div>
-                <span className="text-xs text-[#75647e]">{donations.length} available</span>
+                <span className="text-xs text-[#75647e]">{nearbyDonations.length} available</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-4">
-                {donations.map(donation => {
+                {nearbyDonations.length === 0 && <p className="text-sm text-[#75647e]">No donations nearby yet. Your donations are in History.</p>}
+                {nearbyDonations.map(donation => {
                   const photos = donation.images?.length ? donation.images : [donation.image]
                   const photoIndex = (donationPhotoIndexes[donation.id] ?? 0) % photos.length
                   return (
@@ -2340,11 +2322,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                           <p className="mt-1 text-[10px] text-[#75647e]">Free donation · Values are informational</p>
                         </div>
                       )}
-                      <button type="button" onClick={() => setPublicDonor(donation.donor)} className="mt-2 text-[10px] font-700 text-[#7c3aed] hover:underline">
-                        {getDonorRating(donation.donor).count > 0
-                          ? `★ ${getDonorRating(donation.donor).average.toFixed(1)} (${getDonorRating(donation.donor).count} ratings)`
-                          : 'No ratings yet'}
-                      </button>
                       <div className="mt-4 rounded-xl bg-[#f8f0fa] px-3 py-2.5">
                         {editingDonationLocation === donation.id ? (
                           <div>
@@ -2592,20 +2569,20 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           </div>
         </section>}
 
-        {(activeScreen === 'bought' || activeScreen === 'sold') && <section className="min-h-[70vh]">
+        {(activeScreen === 'bought' || activeScreen === 'sold' || activeScreen === 'donating') && <section className="min-h-[70vh]">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
             <div>
               <span className="text-[10px] uppercase tracking-[0.2em] text-[#8b5cf6] font-600">Everything in one place</span>
               <h1 className="font-display font-900 text-4xl text-[#241335] mt-2">History</h1>
               <p className="text-xs text-[#75647e] mt-2">
-                {activeScreen === 'bought'
+                {activeScreen === 'donating' ? `${ownDonations.length} items in process of donating` : activeScreen === 'bought'
                   ? `${BOUGHT_ITEMS.length + purchasedItems.length} items · ${totalSpent.toLocaleString()} coins spent`
                   : `${completedSalesCount} items · ${totalEarned.toLocaleString()} coins earned`}
               </p>
             </div>
           </div>
 
-          <div className="mb-6 grid max-w-sm grid-cols-2 rounded-2xl border border-[#eadff0] bg-white p-1.5">
+          <div className="mb-6 grid max-w-lg grid-cols-3 rounded-2xl border border-[#eadff0] bg-white p-1.5">
             <button
               type="button"
               onClick={() => navigateTo('bought')}
@@ -2624,7 +2601,45 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
             >
               Sold
             </button>
+            <button type="button" onClick={() => navigateTo('donating')} className={`rounded-xl px-2 py-2.5 text-xs font-700 transition-colors ${activeScreen === 'donating' ? 'brand-gradient text-white' : 'text-[#75647e] hover:bg-[#faf5ff]'}`}>
+              Donating ({ownDonations.length})
+            </button>
           </div>
+
+          {activeScreen === 'donating' && (
+            <section>
+              <h2 className="font-display text-xl font-800 text-[#241335]">In process of donating</h2>
+              <p className="mt-2 mb-5 text-xs text-[#75647e]">Track equipment you have offered to the community while you arrange a handoff.</p>
+              {ownDonations.length === 0 ? (
+                <div className="rounded-2xl border border-[#eadff0] bg-white p-6">
+                  <p className="text-sm text-[#75647e]">You have no donations in progress yet.</p>
+                  <button type="button" onClick={() => { setCommunityTab('donations'); setDonationFormOpen(true); navigateTo('donations') }} className="mt-4 rounded-xl brand-gradient px-4 py-3 text-xs font-700 text-white">Donate equipment</button>
+                </div>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {ownDonations.map(donation => (
+                    <article key={donation.id} className="overflow-hidden rounded-2xl border border-[#eadff0] bg-white">
+                      <button type="button" onClick={() => setImageViewer({ title: donation.item, images: donation.images?.length ? donation.images : [donation.image], index: 0 })} className="h-40 w-full bg-[#f8f0fa]" aria-label={`View photos of ${donation.item}`}>
+                        <img src={donation.image} alt={donation.item} className="h-full w-full object-cover" />
+                      </button>
+                      <div className="p-4">
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-700 text-amber-800">In process of donating</span>
+                        <h3 className="mt-3 font-display text-lg font-800 text-[#241335]">{donation.item}</h3>
+                        <p className="mt-1 text-xs text-[#75647e]">{donation.sport} · {donation.condition}</p>
+                        <p className="mt-3 text-xs text-[#57445f]">{donation.note}</p>
+                        <label className="mt-4 block text-xs font-700 text-[#75647e]">Pickup location
+                          <input value={donation.location} onChange={event => setDonations(current => current.map(item => item.id === donation.id ? { ...item, location: event.target.value } : item))} className="mt-2 w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-3 py-2 text-xs text-[#241335]" />
+                        </label>
+                        {donation.estimatedCashValue !== undefined && <p className="mt-3 text-xs text-[#75647e]">App estimate: {donation.estimatedCoinValue?.toLocaleString()} coins / ${donation.estimatedCashValue.toFixed(2)} USD</p>}
+                        {donation.ownerCashValue !== undefined && <p className="mt-2 text-xs text-[#7c3aed]">Your suggested value: {donation.ownerCoinValue?.toLocaleString()} coins / ${donation.ownerCashValue.toFixed(2)} USD</p>}
+                        <p className="mt-3 text-[10px] text-[#75647e]">Free donation · Awaiting handoff</p>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {activeScreen === 'bought' && pendingExchangeItemIds.length > 0 && (
             <div className="mb-8 rounded-2xl border border-amber-200 bg-amber-50 p-5">
@@ -2649,7 +2664,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           )}
 
           <div className="grid grid-cols-1 min-[430px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            {items.map(item => (
+            {activeScreen !== 'donating' && items.map(item => (
               <ItemCard
                 key={item.id}
                 item={item}
@@ -2664,8 +2679,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 onToggleSold={() => setMarkedSoldItemIds(current => current.includes(item.id)
                   ? current.filter(id => id !== item.id)
                   : [...current, item.id])}
-                onRateProvider={() => item.seller && setRatingExchange({ exchangeKey: `history-${item.id}`, donor: item.seller, itemName: item.name })}
-                reviewed={donorReviews.some(review => review.exchangeKey === `history-${item.id}` && review.recipientEmail === user.email)}
               />
             ))}
           </div>
@@ -2703,12 +2716,8 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                     onBuy={() => {}}
                     onFoundationRequest={() => requestThroughFoundation(item)}
                     foundationRequested={foundationRequestedItemIds.includes(item.id)}
-                    donorRating={getDonorRating(item.seller)}
-                    onViewDonor={() => item.seller && setPublicDonor(item.seller)}
                     onChat={() => item.seller && openChatWith(item.seller, item.seller.split(' ').map(part => part[0]).join(''), item.sport)}
                     onViewImage={() => setImageViewer({ title: item.name, images: [item.image], index: 0 })}
-                    onRateProvider={() => item.seller && setRatingExchange({ exchangeKey: `marketplace-${item.id}`, donor: item.seller, itemName: item.name })}
-                    reviewed={donorReviews.some(review => review.exchangeKey === `marketplace-${item.id}` && review.recipientEmail === user.email)}
                   />
                 ))}
               </div>
@@ -2869,7 +2878,8 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 />
               </div>
               <div className="flex-1">
-                {editingName ? (
+                <CameraCapture facingMode="user" onCapture={onUpdateProfileImage} />
+{editingName ? (
                   <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       value={draftName}
@@ -3046,65 +3056,17 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               </div>
             </div>
 
+            <section className="mt-8 rounded-2xl border border-[#e8d9ee] bg-[#faf5ff] p-4 sm:p-6" aria-labelledby="trophy-title">
+              <p className="text-xs font-700 text-[#8b5cf6]">YOUR POSITIVE IMPACT</p><h3 id="trophy-title" className="mt-1 font-display text-xl font-800 text-[#241335]">&#127942; Trophy cabinet</h3>
+              <p className="mt-2 text-xs text-[#75647e]">{earnedAchievements.length} of {achievements.length} awards earned. Help more people play and celebrate each milestone. Awards are saved to your account on this device.</p>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{achievements.map(award => { const earned = earnedAchievements.includes(award.id); return <article key={award.id} className={`rounded-2xl border p-4 ${earned ? 'border-amber-200 bg-amber-50' : 'border-[#eadff0] bg-white'}`}><span className={`text-3xl ${earned ? '' : 'grayscale opacity-40'}`} aria-hidden="true">{award.icon}</span><p className="mt-3 text-[10px] font-700 uppercase text-[#75647e]">{earned ? 'Award earned' : 'In progress'}</p><h4 className="mt-1 text-sm font-800 text-[#241335]">{award.name}</h4><p className="mt-2 text-xs text-[#75647e]">{award.description}</p><progress value={earned ? award.goal : Math.min(award.value, award.goal)} max={award.goal} aria-label={award.name} className="mt-3 h-2 w-full accent-[#8b5cf6]" /><p className="mt-1 text-[10px] text-[#75647e]">{earned ? award.goal : Math.min(award.value, award.goal)} / {award.goal}</p></article> })}</div>
+            </section>
             <div className="mt-8 pt-6 border-t border-[#eadff0] flex justify-end">
               <button onClick={() => setConfirmSignOut(true)} className="rounded-full bg-[#f8f0fa] border border-[#eadff0] px-5 py-2.5 text-xs font-600 text-[#57445f] hover:text-[#241335] hover:border-[#a28da9] transition-colors">Sign out</button>
             </div>
           </div>
         </section>}
       </main>
-
-      {publicDonor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#160d20]/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={`${publicDonor} donor profile`}>
-          <button className="absolute inset-0" onClick={() => setPublicDonor(null)} aria-label="Close donor profile" />
-          <div className="relative z-10 max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-white p-6 shadow-2xl">
-            <button onClick={() => setPublicDonor(null)} className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-[#f8f0fa] text-[#57445f]" aria-label="Close"><span aria-hidden="true">×</span></button>
-            <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full brand-gradient font-display text-lg font-800 text-white">{publicDonor.split(' ').map(part => part[0]).join('')}</div>
-              <div>
-                <h2 className="font-display text-2xl font-900 text-[#241335]">{publicDonor}</h2>
-                {getDonorRating(publicDonor).count > 0 ? (
-                  <div className="mt-1 text-sm font-700 text-amber-600">★ {getDonorRating(publicDonor).average.toFixed(1)} <span className="text-xs font-500 text-[#75647e]">({getDonorRating(publicDonor).count} ratings)</span></div>
-                ) : <div className="mt-1 text-xs text-[#75647e]">No ratings yet</div>}
-              </div>
-            </div>
-            <div className="mt-6 border-t border-[#eadff0] pt-5">
-              <h3 className="font-display text-sm font-800 text-[#241335]">Recipient reviews</h3>
-              <div className="mt-3 space-y-3">
-                {donorReviews.filter(review => review.donor === publicDonor).map(review => (
-                  <div key={review.id} className="rounded-xl bg-[#fffdf9] p-4">
-                    <div className="flex items-center justify-between gap-3"><span className="text-xs text-amber-600">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span><span className="text-[9px] text-[#a28da9]">{review.date}</span></div>
-                    <div className="mt-2 text-[10px] font-700 text-[#57445f]">{review.itemName}</div>
-                    {review.review && <p className="mt-1 text-xs leading-relaxed text-[#75647e]">{review.review}</p>}
-                  </div>
-                ))}
-                {getDonorRating(publicDonor).count === 0 && <div className="rounded-xl border border-dashed border-[#d8c8de] p-5 text-center text-xs text-[#75647e]">No ratings yet</div>}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {ratingExchange && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#160d20]/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Rate equipment provider">
-          <button className="absolute inset-0" onClick={() => setRatingExchange(null)} aria-label="Cancel rating" />
-          <div className="relative z-10 w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
-            <span className="text-[9px] font-700 uppercase tracking-[0.16em] text-[#8b5cf6]">Completed exchange</span>
-            <h2 className="mt-2 font-display text-xl font-900 text-[#241335]">Rate {ratingExchange.donor}</h2>
-            <p className="mt-1 text-xs text-[#75647e]">{ratingExchange.itemName} · One review allowed for this exchange.</p>
-            <div className="mt-5 flex gap-2" aria-label="Star rating">
-              {[1, 2, 3, 4, 5].map(star => (
-                <button key={star} type="button" onClick={() => setRatingValue(star)} className={`text-3xl ${star <= ratingValue ? 'text-amber-400' : 'text-[#dfd2e4]'}`} aria-label={`${star} star${star === 1 ? '' : 's'}`}>★</button>
-              ))}
-            </div>
-            <label className="mb-2 mt-5 block text-[10px] font-700 uppercase tracking-wide text-[#75647e]">Written review · Optional</label>
-            <textarea value={ratingReview} onChange={event => setRatingReview(event.target.value)} rows={4} placeholder="Share how the exchange went..." className="w-full resize-none rounded-xl border border-[#eadff0] bg-[#fffdf9] px-4 py-3 text-sm text-[#241335]" />
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setRatingExchange(null)} className="rounded-xl border border-[#e8d9ee] py-3 text-xs font-700 text-[#57445f]">Cancel</button>
-              <button type="button" onClick={submitDonorReview} disabled={ratingValue < 1} className="rounded-xl brand-gradient py-3 text-xs font-700 text-white disabled:opacity-40">Submit rating</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {foundationItem && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#160d20]/75 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="foundation-title">
@@ -3280,7 +3242,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
         <div className="grid grid-cols-6 max-w-4xl mx-auto">
           <BottomNavButton label="Home" icon="home" active={activeScreen === 'home'} onClick={() => navigateTo('home')} />
           <BottomNavButton label="Community" icon="donations" active={activeScreen === 'donations'} onClick={() => navigateTo('donations')} />
-          <BottomNavButton label="History" icon="sold" active={activeScreen === 'bought' || activeScreen === 'sold'} onClick={() => navigateTo(tab)} />
+          <BottomNavButton label="History" icon="sold" active={activeScreen === 'bought' || activeScreen === 'sold' || activeScreen === 'donating'} onClick={() => navigateTo(tab)} />
           <BottomNavButton label="Coins" icon="coins" active={activeScreen === 'coins'} onClick={() => navigateTo('coins')} />
           <BottomNavButton label="Chat" icon="messages" active={activeScreen === 'messages'} onClick={() => navigateTo('messages')} />
           <BottomNavButton label="Profile" icon="profile" active={activeScreen === 'profile'} onClick={() => navigateTo('profile')} />
@@ -3347,7 +3309,7 @@ function BottomNavButton({ label, icon, active = false, onClick }: {
   )
 }
 
-function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundationRequest, foundationRequested, donorRating, onViewDonor, onChat, onViewImage, onRateProvider, reviewed }: {
+function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundationRequest, foundationRequested, onChat, onViewImage }: {
   item: MarketplaceItem
   purchased: boolean
   pending: boolean
@@ -3355,12 +3317,8 @@ function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundat
   onBuy: () => void
   onFoundationRequest: () => void
   foundationRequested: boolean
-  donorRating: { average: number; count: number }
-  onViewDonor: () => void
   onChat: () => void
   onViewImage: () => void
-  onRateProvider?: () => void
-  reviewed?: boolean
 }) {
   return (
     <div className="bg-[#ffffff] border border-[#e8d9ee] rounded-2xl overflow-hidden hover:border-[#8b5cf6]/70 transition-colors">
@@ -3401,9 +3359,6 @@ function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundat
         <button onClick={onChat} className="text-[9px] text-[#75647e] hover:text-[#7c3aed] mt-1 mb-3 transition-colors">
           Sold by <span className="font-700">{item.seller ?? 'a GearUp athlete'}</span> · Chat
         </button>
-        <button type="button" onClick={onViewDonor} className="mb-3 block text-[10px] font-700 text-[#7c3aed] hover:underline">
-          {donorRating.count > 0 ? `★ ${donorRating.average.toFixed(1)} (${donorRating.count} ratings)` : 'No ratings yet'}
-        </button>
         <div className="space-y-2">
           <button
             onClick={onBuy}
@@ -3427,16 +3382,6 @@ function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundat
             {foundationRequested ? 'Foundation request approved' : 'Request through GearUp Foundation?'}
           </button>
         </div>
-        {purchased && onRateProvider && (
-          <button
-            type="button"
-            onClick={onRateProvider}
-            disabled={reviewed}
-            className="mt-2 w-full rounded-xl border border-[#fbbf24]/40 bg-amber-50 py-2.5 text-[10px] font-700 text-amber-700 disabled:text-[#a28da9]"
-          >
-            {reviewed ? 'Provider rated for this exchange' : 'Rate equipment provider'}
-          </button>
-        )}
       </div>
     </div>
   )
@@ -3452,16 +3397,14 @@ function ProfileStat({ label, value, detail }: { label: string; value: string; d
   )
 }
 
-function ItemCard({ item, mode, onChat, onViewImage, meetupLocation, markedSold, onToggleSold, onRateProvider, reviewed }: {
+function ItemCard({ item, mode, onChat, onViewImage, meetupLocation, markedSold, onToggleSold }: {
   item: Item
-  mode: Tab
+  mode: 'bought' | 'sold'
   onChat: () => void
   onViewImage: () => void
   meetupLocation: string
   markedSold: boolean
   onToggleSold: () => void
-  onRateProvider: () => void
-  reviewed: boolean
 }) {
   return (
     <div className="bg-[#ffffff] border border-[#eadff0] rounded-2xl overflow-hidden hover:border-[#8b5cf6]/60 transition-all group">
@@ -3535,16 +3478,6 @@ function ItemCard({ item, mode, onChat, onViewImage, meetupLocation, markedSold,
             }`}
           >
             {markedSold ? 'Sold ✓ · Mark as available' : 'Mark this item as sold'}
-          </button>
-        )}
-        {mode === 'bought' && item.seller && (
-          <button
-            type="button"
-            onClick={onRateProvider}
-            disabled={reviewed}
-            className="mt-3 w-full rounded-xl border border-amber-200 bg-amber-50 py-2.5 text-[10px] font-700 text-amber-700 disabled:text-[#a28da9]"
-          >
-            {reviewed ? 'Provider rated for this exchange' : 'Rate equipment provider'}
           </button>
         )}
       </div>
