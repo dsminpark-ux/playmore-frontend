@@ -4,7 +4,7 @@ import { LocationAutocomplete } from './LocationAutocomplete'
 
 type View = 'landing' | 'signin' | 'signup' | 'dashboard'
 type Tab = 'bought' | 'sold' | 'donating'
-type DashboardScreen = 'home' | 'search' | 'donations' | Tab | 'coins' | 'messages' | 'profile'
+type DashboardScreen = 'home' | 'marketplace' | 'donations' | Tab | 'coins' | 'messages' | 'profile'
 type FoundationApplicantType = 'referred-family' | 'playmore-family' | 'requesting-for-someone'
 type FoundationApplicationStatus = 'pending' | 'approved' | 'denied'
 
@@ -29,20 +29,6 @@ interface User {
   foundationApplication?: FoundationApplication
 }
 
-interface Item {
-  id: number
-  name: string
-  sport: string
-  coins: number
-  date: string
-  image: string
-  condition: string
-  size: string
-  gender: 'Men' | 'Women' | 'Unisex'
-  seller?: string
-  buyer?: string
-}
-
 interface MarketplaceItem {
   id: number
   name: string
@@ -56,6 +42,7 @@ interface MarketplaceItem {
   seller?: string
   description?: string
   cashEstimate?: number
+  meetupArea?: string
   images?: string[]
   ownerEmail?: string
 }
@@ -86,6 +73,7 @@ interface ImageViewerState {
 interface WishlistRequest {
   id: number
   author: string
+  ownerEmail?: string
   avatar: string
   item: string
   sport: string
@@ -140,7 +128,6 @@ interface DashboardProgress {
   messages: Record<number, ChatMessage[]>
   selectedConversation: number
   donations: DonationItem[]
-  markedSoldItemIds: number[]
   foundationRequestedItemIds: number[]
   pendingExchangeItemIds: number[]
   userEquipmentListings: UserEquipmentListing[]
@@ -172,6 +159,16 @@ function loadProgress(email: string): Partial<DashboardProgress> {
   } catch {
     return {}
   }
+}
+
+function loadOtherListings(currentEmail: string): UserEquipmentListing[] {
+  const emailKey = currentEmail.trim().toLowerCase()
+  return Object.entries(loadAccounts()).flatMap(([email, account]) =>
+    email === emailKey ? [] : (loadProgress(email).userEquipmentListings ?? []).map(item => ({
+      ...item,
+      meetupArea: item.meetupArea || account.user.location,
+    })),
+  )
 }
 
 function fileToDataUrl(file: File) {
@@ -273,328 +270,6 @@ function EquipmentValuation({ cash, coins, ownerValue, onOwnerValueChange }: {
   )
 }
 
-const MOCK_USER: User = {
-  name: 'Jordan Mercer',
-  email: 'jordan@gearup.co',
-  coins: 1240,
-  avatar: 'JM',
-  location: 'North Park',
-}
-
-const BOUGHT_ITEMS: Item[] = [
-  {
-    id: 1,
-    name: 'Wilson Pro Staff RF97 Racket',
-    sport: 'Tennis',
-    coins: 189,
-    date: 'Sep 28, 2026',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=200&fit=crop&auto=format',
-    condition: 'Like New',
-    size: 'L',
-    gender: 'Unisex',
-    seller: 'Alex T.',
-  },
-  {
-    id: 2,
-    name: 'Specialized Allez Sprint Road Bike',
-    sport: 'Cycling',
-    coins: 1450,
-    date: 'Sep 12, 2026',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=300&h=200&fit=crop&auto=format',
-    condition: 'Good',
-    size: 'M',
-    gender: 'Men',
-    seller: 'Sam K.',
-  },
-  {
-    id: 3,
-    name: 'Bauer Supreme Hockey Skates',
-    sport: 'Hockey',
-    coins: 310,
-    date: 'Aug 30, 2026',
-    image: 'https://images.unsplash.com/photo-1515703407324-5f753afd8be8?w=300&h=200&fit=crop&auto=format',
-    condition: 'Good',
-    size: 'L',
-    gender: 'Men',
-    seller: 'Priya M.',
-  },
-  {
-    id: 4,
-    name: 'Titleist Pro V1 Golf Set',
-    sport: 'Golf',
-    coins: 220,
-    date: 'Aug 14, 2026',
-    image: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=300&h=200&fit=crop&auto=format',
-    condition: 'Like New',
-    size: 'M',
-    gender: 'Unisex',
-    seller: 'Chris W.',
-  },
-]
-
-const SOLD_ITEMS: Item[] = [
-  {
-    id: 5,
-    name: 'Rossignol Experience 88 Skis',
-    sport: 'Skiing',
-    coins: 594,
-    date: 'Sep 20, 2026',
-    image: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=300&h=200&fit=crop&auto=format',
-    condition: 'Good',
-    size: 'L',
-    gender: 'Unisex',
-    buyer: 'Mia L.',
-  },
-  {
-    id: 6,
-    name: 'Yonex Astrox 88D Badminton Racket',
-    sport: 'Badminton',
-    coins: 148,
-    date: 'Aug 22, 2026',
-    image: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=300&h=200&fit=crop&auto=format',
-    condition: 'Like New',
-    size: 'S',
-    gender: 'Women',
-    buyer: 'Tom R.',
-  },
-  {
-    id: 7,
-    name: 'Nike Mercurial Vapor Cleats',
-    sport: 'Soccer',
-    coins: 198,
-    date: 'Jul 31, 2026',
-    image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&h=200&fit=crop&auto=format',
-    condition: 'Very Good',
-    size: 'M',
-    gender: 'Men',
-    buyer: 'Layla H.',
-  },
-]
-
-const MARKETPLACE_ITEMS: MarketplaceItem[] = [
-  {
-    id: 108,
-    name: 'Pro Leather American Football',
-    sport: 'American Football',
-    coinCost: 260,
-    image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=500&h=400&fit=crop&auto=format',
-    size: 'M',
-    gender: 'Unisex',
-    color: 'White',
-    condition: 'Like New',
-    seller: 'Marcus J.',
-  },
-  {
-    id: 109,
-    name: 'Junior Grip American Football',
-    sport: 'American Football',
-    coinCost: 190,
-    image: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?w=500&h=400&fit=crop&auto=format',
-    size: 'S',
-    gender: 'Unisex',
-    color: 'Blue',
-    condition: 'Good',
-    seller: 'Theo R.',
-  },
-  {
-    id: 110,
-    name: 'Elite Game American Football',
-    sport: 'American Football',
-    coinCost: 420,
-    image: 'https://images.unsplash.com/photo-1570498839593-e565b39455fc?w=500&h=400&fit=crop&auto=format',
-    size: 'L',
-    gender: 'Unisex',
-    color: 'White',
-    condition: 'Very Good',
-    seller: 'Dani P.',
-  },
-  {
-    id: 111,
-    name: 'Youth Training American Football',
-    sport: 'American Football',
-    coinCost: 220,
-    image: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=500&h=400&fit=crop&auto=format',
-    size: 'M',
-    gender: 'Kids',
-    color: 'Orange',
-    condition: 'Good',
-    seller: 'Jamie L.',
-  },
-  {
-    id: 112,
-    name: 'American Football for All Weather',
-    sport: 'American Football',
-    coinCost: 340,
-    image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=500&h=400&fit=crop&auto=format',
-    size: 'L',
-    gender: 'Unisex',
-    color: 'Black',
-    condition: 'Like New',
-    seller: 'Avery S.',
-  },
-  {
-    id: 100,
-    name: 'GearUp Sports Bottle',
-    sport: 'Training',
-    coinCost: 120,
-    image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=500&h=400&fit=crop&auto=format',
-    condition: 'Very Good',
-    seller: 'Riley N.',
-  },
-  {
-    id: 101,
-    name: 'Adidas Training Soccer Ball',
-    sport: 'Soccer',
-    coinCost: 320,
-    image: 'https://images.unsplash.com/photo-1553778263-73a83bab9b0c?w=500&h=400&fit=crop&auto=format',
-    condition: 'Like New',
-    seller: 'Morgan C.',
-  },
-  {
-    id: 102,
-    name: 'Wilson Championship Tennis Set',
-    sport: 'Tennis',
-    coinCost: 460,
-    image: 'https://images.unsplash.com/photo-1698612922296-b4cd84d3a75c?w=500&h=400&fit=crop&auto=format',
-    condition: 'Very Good',
-    seller: 'Taylor B.',
-  },
-  {
-    id: 103,
-    name: 'Street Pro Basketball',
-    sport: 'Basketball',
-    coinCost: 280,
-    image: 'https://images.unsplash.com/photo-1552492626-a714155fb6f3?w=500&h=400&fit=crop&auto=format',
-    condition: 'Good',
-    seller: 'Chris A.',
-  },
-  {
-    id: 104,
-    name: 'Performance Cycling Helmet',
-    sport: 'Cycling',
-    coinCost: 680,
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=500&h=400&fit=crop&auto=format',
-    condition: 'Very Good',
-    seller: 'Sam K.',
-  },
-  {
-    id: 105,
-    name: 'Speed Jump Rope',
-    sport: 'Training',
-    coinCost: 180,
-    image: 'https://images.unsplash.com/photo-1599058917212-d750089bc07e?w=500&h=400&fit=crop&auto=format',
-    condition: 'Good',
-    seller: 'Nia W.',
-  },
-  {
-    id: 106,
-    name: 'Performance Training Mat',
-    sport: 'Fitness',
-    coinCost: 240,
-    image: 'https://images.unsplash.com/photo-1592432678016-e910b452f9a2?w=500&h=400&fit=crop&auto=format',
-    condition: 'Like New',
-    seller: 'Alex T.',
-  },
-  {
-    id: 107,
-    name: 'Premium Golf Glove',
-    sport: 'Golf',
-    coinCost: 150,
-    image: 'https://images.unsplash.com/photo-1535131749006-b7f58c99034b?w=500&h=400&fit=crop&auto=format',
-    condition: 'Very Good',
-    seller: 'Priya M.',
-  },
-]
-
-const INITIAL_WISHLIST: WishlistRequest[] = [
-  {
-    id: 1,
-    author: 'Maya Chen',
-    avatar: 'MC',
-    item: 'Women’s road cycling shoes, size 7',
-    sport: 'Cycling',
-    note: 'Looking for a lightly used pair with compatibility with cleats that use three bolts.',
-    posted: '12 min ago',
-  },
-  {
-    id: 2,
-    author: 'Eli Thompson',
-    avatar: 'ET',
-    item: 'Baseball glove for a lefty',
-    sport: 'Baseball',
-    note: 'Youth size preferred. Open to any trusted brand.',
-    posted: '1 hr ago',
-  },
-  {
-    id: 3,
-    author: 'Nora Williams',
-    avatar: 'NW',
-    item: 'Beginner tennis racket',
-    sport: 'Tennis',
-    note: 'Need something lightweight for weekend lessons.',
-    posted: '3 hrs ago',
-  },
-]
-
-const CONVERSATIONS: Conversation[] = [
-  { id: 1, name: 'Maya Chen', avatar: 'MC', sport: 'Cycling', online: true },
-  { id: 2, name: 'Alex Thompson', avatar: 'AT', sport: 'Tennis', online: true },
-  { id: 3, name: 'Priya Malik', avatar: 'PM', sport: 'Hockey', online: false },
-]
-
-const INITIAL_MESSAGES: Record<number, ChatMessage[]> = {
-  1: [
-    { id: 1, sender: 'them', text: 'Hi Jordan! Is the cycling helmet still available?', time: '10:24 AM' },
-    { id: 2, sender: 'me', text: 'It is! I can set it aside for you.', time: '10:27 AM' },
-    { id: 3, sender: 'them', text: 'Amazing, thank you. I’m getting back into weekend rides.', time: '10:29 AM' },
-    { id: 4, sender: 'me', text: 'You should join our Saturday group ride once you’re set up.', time: '10:31 AM' },
-  ],
-  2: [
-    { id: 5, sender: 'them', text: 'Thanks again for the racket. Want to hit sometime?', time: 'Yesterday' },
-    { id: 6, sender: 'me', text: 'Definitely. I’m free Sunday morning!', time: 'Yesterday' },
-  ],
-  3: [
-    { id: 7, sender: 'me', text: 'The skates arrived and fit perfectly. Thanks Priya!', time: 'Mon' },
-    { id: 8, sender: 'them', text: 'Glad they found a good home. Have a great season!', time: 'Mon' },
-  ],
-}
-
-const INITIAL_DONATIONS: DonationItem[] = [
-  {
-    id: 1,
-    item: 'Set of junior tennis rackets',
-    sport: 'Tennis',
-    condition: 'Good',
-    location: 'Riverside Community Center · 1.2 mi',
-    note: 'Four rackets ready for a school team or young players getting started.',
-    donor: 'Maya Chen',
-    avatar: 'MC',
-    image: 'https://images.unsplash.com/photo-1739134472056-8164f74227d8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx1c2VkJTIwc3BvcnRzJTIwZXF1aXBtZW50JTIwZm9vdGJhbGwlMjB0ZW5uaXMlMjBiYXNrZXRiYWxsJTIwZG9uYXRpb258ZW58MXx8fHwxNzkxNzY4MTMyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-  },
-  {
-    id: 2,
-    item: 'Youth basketballs',
-    sport: 'Basketball',
-    condition: 'Very Good',
-    location: 'Eastside Sports Hub · 2.8 mi',
-    note: 'A set of practice balls with plenty of games left in them.',
-    donor: 'Alex Thompson',
-    avatar: 'AT',
-    image: 'https://images.unsplash.com/photo-1703673916845-a503ca0c9492?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw2fHx1c2VkJTIwc3BvcnRzJTIwZXF1aXBtZW50JTIwZm9vdGJhbGwlMjB0ZW5uaXMlMjBiYXNrZXRiYWxsJTIwZG9uYXRpb258ZW58MXx8fHwxNzkxNzY4MTMyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-  },
-  {
-    id: 3,
-    item: 'Mixed training balls',
-    sport: 'Training',
-    condition: 'Good',
-    location: 'North Park Field House · 4.1 mi',
-    note: 'Ideal for a community club, camp, or program that runs after school.',
-    donor: 'Priya Malik',
-    avatar: 'PM',
-    image: 'https://images.unsplash.com/photo-1646504632442-6cacb1858bd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHx1c2VkJTIwc3BvcnRzJTIwZXF1aXBtZW50JTIwZm9vdGJhbGwlMjB0ZW5uaXMlMjBiYXNrZXRiYWxsJTIwZG9uYXRpb258ZW58MXx8fHwxNzkxNzY4MTMyfDA&ixlib=rb-4.1.0&q=80&w=1080',
-  },
-]
-
 const CONDITION_COLOR: Record<string, string> = {
   'Like New': 'text-[#8b5cf6]',
   'Very Good': 'text-sky-400',
@@ -602,31 +277,10 @@ const CONDITION_COLOR: Record<string, string> = {
   'Fair': 'text-orange-400',
 }
 
-const SELLER_MEETUP_LOCATIONS: Record<string, string> = {
-  'Alex T.': 'North Park',
-  'Sam K.': 'Riverside',
-  'Priya M.': 'Westside',
-  'Chris W.': 'Downtown',
-  'Marcus J.': 'North Park',
-  'Theo R.': 'East Village',
-  'Dani P.': 'Riverside',
-  'Jamie L.': 'Westside',
-  'Avery S.': 'Downtown',
-  'Riley N.': 'North Park',
-  'Morgan C.': 'East Village',
-  'Taylor B.': 'Westside',
-  'Chris A.': 'Downtown',
-  'Nia W.': 'Riverside',
-}
-
-function getSellerMeetupLocation(seller?: string) {
-  return seller ? SELLER_MEETUP_LOCATIONS[seller] ?? 'Central community area' : 'Meetup area shared in chat'
-}
-
 export default function App() {
   const [view, setView] = useState<View>('landing')
   const [tab, setTab] = useState<Tab>('bought')
-  const [user, setUser] = useState<User>(MOCK_USER)
+  const [user, setUser] = useState<User>({ name: '', email: '', coins: 0, avatar: '', location: '' })
   const [formData, setFormData] = useState<AuthFormData>({ firstName: '', lastName: '', email: '', password: '', location: '' })
   const [authError, setAuthError] = useState('')
 
@@ -676,9 +330,9 @@ export default function App() {
     const avatar = [firstName, lastName].map(part => Array.from(part)[0].toUpperCase()).join('')
 
     const newUser: User = {
-      ...MOCK_USER,
       name,
       email,
+      coins: 0,
       avatar: avatar || 'PA',
       location: formData.location.trim(),
     }
@@ -811,7 +465,7 @@ function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () =>
         </h1>
 
         <p className="text-[#75647e] text-base sm:text-lg max-w-md mb-9 sm:mb-12 leading-relaxed">
-          Buy and sell sports equipment with other athletes. Every transaction earns you coins to spend on your next gear upgrade.
+          Sell sports equipment to earn coins and spend them on your next gear upgrade.
         </p>
 
         <div className="flex w-full max-w-sm flex-col sm:w-auto sm:max-w-none sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center">
@@ -1125,14 +779,13 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [listingImages, setListingImages] = useState<string[]>([])
   const [listingCategory, setListingCategory] = useState('Ball')
   const [listingBrand, setListingBrand] = useState('')
-  const [listingColor, setListingColor] = useState('')
   const [listingSize, setListingSize] = useState('')
   const [listingAge, setListingAge] = useState('')
   const [listingCondition, setListingCondition] = useState('Good')
   const [listingTitle, setListingTitle] = useState('')
   const [listingDescription, setListingDescription] = useState('')
-  const [listingCashEstimate, setListingCashEstimate] = useState(0)
-  const [listingCoinValue, setListingCoinValue] = useState(0)
+  const [listingCashEstimate, setListingCashEstimate] = useState('')
+  const [listingCoinValue, setListingCoinValue] = useState('')
   const [purchaseMessage, setPurchaseMessage] = useState('')
   const [editingName, setEditingName] = useState(false)
   const [draftName, setDraftName] = useState(user.name)
@@ -1140,7 +793,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [draftLocation, setDraftLocation] = useState(user.location)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [desktopFiltersVisible, setDesktopFiltersVisible] = useState(true)
-  const [wishlistRequests, setWishlistRequests] = useState<WishlistRequest[]>(savedProgress.wishlistRequests ?? INITIAL_WISHLIST)
+  const [wishlistRequests, setWishlistRequests] = useState<WishlistRequest[]>((savedProgress.wishlistRequests ?? []).filter(request => request.ownerEmail || request.id > 3))
   const [wishlistItem, setWishlistItem] = useState('')
   const [wishlistSport, setWishlistSport] = useState('')
   const [wishlistEquipmentSelection, setWishlistEquipmentSelection] = useState('')
@@ -1150,11 +803,11 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [communityTab, setCommunityTab] = useState<'donations' | 'buy'>('donations')
   const [requestFormOpen, setRequestFormOpen] = useState(false)
   const [donationFormOpen, setDonationFormOpen] = useState(false)
-  const [selectedConversation, setSelectedConversation] = useState(savedProgress.selectedConversation ?? 1)
-  const [conversations, setConversations] = useState<Conversation[]>(savedProgress.conversations ?? CONVERSATIONS)
-  const [messages, setMessages] = useState<Record<number, ChatMessage[]>>(savedProgress.messages ?? INITIAL_MESSAGES)
+  const [selectedConversation, setSelectedConversation] = useState(savedProgress.selectedConversation && savedProgress.selectedConversation > 3 ? savedProgress.selectedConversation : 0)
+  const [conversations, setConversations] = useState<Conversation[]>((savedProgress.conversations ?? []).filter(conversation => conversation.id > 3))
+  const [messages, setMessages] = useState<Record<number, ChatMessage[]>>(Object.fromEntries(Object.entries(savedProgress.messages ?? {}).filter(([id]) => Number(id) > 3)))
   const [messageDraft, setMessageDraft] = useState('')
-  const [donations, setDonations] = useState<DonationItem[]>(savedProgress.donations ?? INITIAL_DONATIONS)
+  const [donations, setDonations] = useState<DonationItem[]>((savedProgress.donations ?? []).filter(donation => donation.ownerEmail || donation.id > 3))
   const [donationItem, setDonationItem] = useState('')
   const [donationSport, setDonationSport] = useState('')
   const [donationCondition, setDonationCondition] = useState('Good')
@@ -1169,9 +822,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
   const [donationLocationDraft, setDonationLocationDraft] = useState('')
   const [imageViewer, setImageViewer] = useState<ImageViewerState | null>(null)
   const [confirmSignOut, setConfirmSignOut] = useState(false)
-  const [markedSoldItemIds, setMarkedSoldItemIds] = useState<number[]>(
-    savedProgress.markedSoldItemIds ?? SOLD_ITEMS.slice(0, 2).map(item => item.id),
-  )
   const [sizeFilter, setSizeFilter] = useState('All')
   const [genderFilter, setGenderFilter] = useState('All')
   const [sportFilter, setSportFilter] = useState('All')
@@ -1206,7 +856,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
       messages,
       selectedConversation,
       donations,
-      markedSoldItemIds,
       foundationRequestedItemIds,
       pendingExchangeItemIds,
       userEquipmentListings,
@@ -1223,8 +872,19 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     activityFilter !== 'All' ||
     priceFilter !== 'All' ||
     sortFilter !== 'Newest'
-  const homeSearchItems = activeScreen === 'search' || query.trim() || hasFilters
-    ? [...MARKETPLACE_ITEMS, ...userEquipmentListings.filter(item => item.status === 'active')]
+  const [otherListings, setOtherListings] = useState(() => loadOtherListings(user.email))
+  useEffect(() => {
+    const refreshListings = (event: StorageEvent) => {
+      if (event.key === ACCOUNTS_STORAGE_KEY || event.key?.startsWith(progressStorageKey(''))) {
+        setOtherListings(loadOtherListings(user.email))
+      }
+    }
+    window.addEventListener('storage', refreshListings)
+    return () => window.removeEventListener('storage', refreshListings)
+  }, [user.email])
+  const allListings = [...otherListings, ...userEquipmentListings]
+  const homeSearchItems = activeScreen === 'marketplace' || query.trim() || hasFilters
+    ? allListings.filter(item => item.status === 'active')
         .filter(item => {
           const matchesQuery = !query.trim() ||
             query.trim().toLowerCase() === 'other' ||
@@ -1256,15 +916,10 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           return b.id - a.id
         })
     : []
-  const soldItems = SOLD_ITEMS.filter(item => markedSoldItemIds.includes(item.id))
-  const isOwnDonation = (donation: DonationItem) => donation.ownerEmail
-    ? donation.ownerEmail.trim().toLowerCase() === user.email.trim().toLowerCase()
-    : donation.donor === user.name
+  const isOwnedByUser = (ownerEmail?: string) => ownerEmail?.trim().toLowerCase() === user.email.trim().toLowerCase()
+  const isOwnDonation = (donation: DonationItem) => isOwnedByUser(donation.ownerEmail)
   const ownDonations = donations.filter(isOwnDonation)
   const nearbyDonations = donations.filter(donation => !isOwnDonation(donation))
-  const activeListings = SOLD_ITEMS.filter(item => !markedSoldItemIds.includes(item.id))
-  const activityItems = activeScreen === 'sold' ? soldItems : BOUGHT_ITEMS
-  const items = activityItems
   const filteredWishlistRequests = wishlistRequests.filter(request => {
     if (requestSportFilter === 'All') return true
     if (requestSportFilter === 'Other') {
@@ -1272,14 +927,11 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     }
     return request.sport === requestSportFilter
   })
-  const marketplaceSpent = [...MARKETPLACE_ITEMS, ...userEquipmentListings]
-    .filter(item => purchasedItems.includes(item.id))
-    .reduce((sum, item) => sum + item.coinCost, 0)
-  const totalSpent = BOUGHT_ITEMS.reduce((sum, item) => sum + item.coins, 0) + marketplaceSpent
-  const totalEarned =
-    soldItems.reduce((sum, item) => sum + item.coins, 0) +
-    userEquipmentListings.filter(item => item.status === 'completed').reduce((sum, item) => sum + item.coinCost, 0)
-  const completedSalesCount = soldItems.length + userEquipmentListings.filter(item => item.status === 'completed').length
+  const totalSpent = coinTransactions.filter(transaction => transaction.type === 'spent').reduce((sum, transaction) => sum - transaction.amount, 0)
+  const totalEarned = coinTransactions.filter(transaction => transaction.type === 'earned').reduce((sum, transaction) => sum + transaction.amount, 0)
+  const purchaseCount = purchasedItems.length
+  const completedSalesCount = userEquipmentListings.filter(item => item.status === 'completed').length
+  const activeListings = userEquipmentListings.filter(item => item.status === 'active')
 
   const changeTab = (nextTab: Tab) => {
     onTabChange(nextTab)
@@ -1377,6 +1029,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
       {
         id: Date.now(),
         author: user.name,
+        ownerEmail: user.email,
         avatar: user.avatar,
         item,
         sport,
@@ -1421,10 +1074,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     } else {
       const id = Date.now()
       setConversations(current => [...current, { id, name, avatar, sport, online: false }])
-      setMessages(current => ({
-        ...current,
-        [id]: [{ id: id + 1, sender: 'them', text: `Hi! Thanks for reaching out through GearUp.`, time: 'Now' }],
-      }))
       setSelectedConversation(id)
     }
     navigateTo('messages')
@@ -1490,7 +1139,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     const { cash } = estimateEquipmentValue(listingCategory, listingCondition, age)
     const titleParts = [listingBrand.trim(), listingCategory].filter(Boolean)
     const knownDetails = [
-      listingColor.trim() && `${listingColor.trim()} color`,
       listingSize.trim() && `size ${listingSize.trim()}`,
       listingCondition && `${listingCondition.toLowerCase()} condition`,
       listingAge.trim() && `approximately ${listingAge.trim()} year${listingAge.trim() === '1' ? '' : 's'} old`,
@@ -1499,10 +1147,10 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     setListingDescription(
       knownDetails.length
         ? `${titleParts.join(' ') || 'Sports equipment'} in ${knownDetails.join(', ')}. Review the photos and add any model, fit, or wear details that are not visible.`
-        : 'Photo uploaded. Add the equipment type, brand, color, size, age, and condition to improve this suggested description.',
+        : 'Photo uploaded. Add the equipment type, brand, size, age, and condition to improve this suggested description.',
     )
-    setListingCashEstimate(cash)
-    setListingCoinValue(Math.max(10, Math.round(cash * 3)))
+    setListingCashEstimate(String(cash))
+    setListingCoinValue(String(Math.max(10, Math.round(cash * 3))))
   }
 
   const addListingImages = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1515,17 +1163,21 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
 
   const publishEquipmentListing = (event: React.FormEvent) => {
     event.preventDefault()
-    if (!listingImages.length || !listingTitle.trim() || !listingDescription.trim() || listingCoinValue < 1) return
+    const cashEstimate = Number(listingCashEstimate)
+    const coinValue = Number(listingCoinValue)
+    if (!listingImages.length || !listingTitle.trim() || !listingDescription.trim()) return
+    if (!listingCashEstimate || !Number.isFinite(cashEstimate) || cashEstimate < 0 || !Number.isSafeInteger(coinValue) || coinValue < 1) return
     const id = Date.now()
     setUserEquipmentListings(current => [{
       id,
       name: listingTitle.trim(),
       sport: listingCategory,
-      coinCost: listingCoinValue,
+      coinCost: coinValue,
       image: listingImages[0],
       images: listingImages,
       description: listingDescription.trim(),
-      cashEstimate: listingCashEstimate,
+      cashEstimate,
+      meetupArea: user.location,
       condition: listingCondition,
       size: listingSize || undefined,
       seller: user.name,
@@ -1535,13 +1187,12 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
     setListingFormOpen(false)
     setListingImages([])
     setListingBrand('')
-    setListingColor('')
     setListingSize('')
     setListingAge('')
     setListingTitle('')
     setListingDescription('')
-    setListingCashEstimate(0)
-    setListingCoinValue(0)
+    setListingCashEstimate('')
+    setListingCoinValue('')
   }
 
 
@@ -1574,7 +1225,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
             </div>
           </div>
 
-          {activeScreen === 'search' && <>
+          {activeScreen === 'marketplace' && <>
           <div
             className="relative group"
             onBlur={event => {
@@ -1603,7 +1254,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               onKeyDown={event => {
                 if (event.key === 'Enter' && query.trim()) {
                   setSearchMenuOpen(false)
-                  navigateTo('search')
+                  navigateTo('marketplace')
                 }
                 if (event.key === 'Escape') setSearchMenuOpen(false)
               }}
@@ -1666,7 +1317,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                         setQuery(category)
                         setSportFilter(category)
                         setSearchMenuOpen(false)
-                        navigateTo('search')
+                        navigateTo('marketplace')
                       }}
                       className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-left text-xs font-600 transition-colors ${
                         query === category
@@ -1760,7 +1411,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
 
         <section aria-label="GearUp features" className="mb-9 grid gap-3 sm:grid-cols-3">
           {([
-            { screen: 'search', title: 'Find sports gear', description: 'Browse equipment by sport and coin price.' },
+            { screen: 'marketplace', title: 'Marketplace', description: 'Browse equipment from every meetup area.' },
             { screen: 'coins', title: 'Track your coins', description: 'Check your balance and see how you can earn coins.' },
             { screen: 'donations', title: 'Donate your gear', description: 'Help someone else get in the game.' },
           ] as const).map(({ screen, title, description }) => (
@@ -1811,10 +1462,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                   </select>
                 </div>
                 <div>
-                  <label className="mb-2 block text-[10px] font-700 uppercase tracking-wide text-[#75647e]">Color</label>
-                  <input value={listingColor} onChange={event => setListingColor(event.target.value)} placeholder="If visible or known" className="w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-4 py-3 text-sm text-[#241335]" />
-                </div>
-                <div>
                   <label className="mb-2 block text-[10px] font-700 uppercase tracking-wide text-[#75647e]">Size</label>
                   <input value={listingSize} onChange={event => setListingSize(event.target.value)} placeholder="If applicable" className="w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-4 py-3 text-sm text-[#241335]" />
                 </div>
@@ -1848,12 +1495,12 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="mb-2 block text-[9px] font-700 uppercase tracking-wide text-[#75647e]">Estimated cash value</label>
-                    <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#75647e]">$</span><input type="number" min="0" value={listingCashEstimate} onChange={event => setListingCashEstimate(Number(event.target.value))} className="w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] py-3 pl-7 pr-3 text-sm text-[#241335]" /></div>
+                    <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#75647e]">$</span><input type="number" min="0" step="0.01" required value={listingCashEstimate} onChange={event => setListingCashEstimate(event.target.value)} className="w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] py-3 pl-7 pr-3 text-sm text-[#241335]" /></div>
                     <p className="mt-1 text-[9px] text-[#75647e]">Informational estimate only.</p>
                   </div>
                   <div>
                     <label className="mb-2 block text-[9px] font-700 uppercase tracking-wide text-[#75647e]">Suggested coins</label>
-                    <input type="number" min="1" value={listingCoinValue} onChange={event => setListingCoinValue(Number(event.target.value))} className="w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-3 py-3 text-sm text-[#241335]" />
+                    <input type="number" min="1" required value={listingCoinValue} onChange={event => setListingCoinValue(event.target.value)} className="w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-3 py-3 text-sm text-[#241335]" />
                     <p className="mt-1 text-[9px] text-[#75647e]">Editable community points.</p>
                   </div>
                 </div>
@@ -1870,52 +1517,12 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               <h2 className="mt-2 font-display text-2xl font-900 text-[#241335]">Active listings</h2>
               <p className="mt-1 text-xs text-[#75647e]">Items you listed that have not been sold yet.</p>
             </div>
-            <span className="rounded-full bg-[#f3e8ff] px-3 py-1.5 text-[10px] font-700 text-[#7c3aed]">{activeListings.length + userEquipmentListings.filter(item => item.status === 'active').length} active</span>
+            <span className="rounded-full bg-[#f3e8ff] px-3 py-1.5 text-[10px] font-700 text-[#7c3aed]">{activeListings.length} active</span>
           </div>
 
-          {activeListings.length + userEquipmentListings.filter(item => item.status === 'active').length > 0 ? (
+          {activeListings.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {activeListings.map(item => (
-                <article key={item.id} className="overflow-hidden rounded-2xl border border-[#eadff0] bg-white">
-                  <button
-                    type="button"
-                    onClick={() => setImageViewer({ title: item.name, images: [item.image], index: 0 })}
-                    className="relative block h-40 w-full overflow-hidden bg-[#f8f0fa]"
-                    aria-label={`View image of ${item.name}`}
-                  >
-                    <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-                    <span className="absolute left-3 top-3 rounded-full border border-white bg-white/90 px-3 py-1 text-[9px] font-700 uppercase tracking-wide text-[#7c3aed]">Listed</span>
-                    <span className="absolute bottom-3 right-3 rounded-full bg-[#241335]/85 px-3 py-1.5 text-[9px] font-700 text-white">View image</span>
-                  </button>
-                  <div className="p-4">
-                    <div className="text-[9px] uppercase tracking-wide text-[#75647e]">{item.sport} · {item.condition}</div>
-                    <h3 className="mt-1.5 font-display text-sm font-800 text-[#241335]">{item.name}</h3>
-                    <div className="mt-3 flex items-center gap-1.5">
-                      <CoinIcon className="h-5 w-5" />
-                      <span className="font-display text-sm font-800 text-[#241335]">{item.coins.toLocaleString()} coins</span>
-                    </div>
-                    <div className="mt-3 flex items-center gap-1.5 rounded-lg bg-[#f8f0fa] px-3 py-2 text-[10px] font-600 text-[#57445f]">
-                      <svg viewBox="0 0 16 16" fill="none" className="h-3.5 w-3.5 flex-none text-[#8b5cf6]" aria-hidden="true">
-                        <path d="M8 14s4.5-4 4.5-7.5a4.5 4.5 0 1 0-9 0C3.5 10 8 14 8 14Z" stroke="currentColor" strokeWidth="1.3" />
-                        <circle cx="8" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
-                      </svg>
-                      Meetup near {user.location}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMarkedSoldItemIds(current => [...current, item.id])
-                        setCoinBalance(balance => balance + item.coins)
-                        setCoinTransactions(current => [{ id: Date.now(), amount: item.coins, itemName: item.name, type: 'earned', date: 'Just now', note: 'Completed Community Exchange' }, ...current])
-                      }}
-                      className="mt-3 w-full rounded-xl brand-gradient py-2.5 text-[10px] font-700 text-white hover:brightness-110"
-                    >
-                      Mark as sold
-                    </button>
-                  </div>
-                </article>
-              ))}
-              {userEquipmentListings.filter(item => item.status === 'active').map(item => (
                 <article key={item.id} className="overflow-hidden rounded-2xl border border-[#eadff0] bg-white">
                   <button type="button" onClick={() => setImageViewer({ title: item.name, images: item.images, index: 0 })} className="relative block h-40 w-full overflow-hidden bg-[#f8f0fa]">
                     <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
@@ -1953,7 +1560,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
         </section>
         </>}
 
-        {activeScreen === 'search' && <section className="min-h-[70vh]">
+        {activeScreen === 'marketplace' && <section className="min-h-[70vh]">
             {purchaseMessage && (
               <div className="mb-4 rounded-xl border border-[#e9d5ff] bg-[#faf5ff] px-4 py-3 text-xs text-[#1e3a5f]">
                 {purchaseMessage}
@@ -1961,9 +1568,10 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
             )}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
               <div>
-                <h2 className="font-display font-800 text-2xl text-[#241335]">Search results</h2>
+                <h2 className="font-display font-800 text-2xl text-[#241335]">Marketplace</h2>
+                <p className="mt-1 text-sm text-[#75647e]">Browse listed equipment from every meetup area.</p>
                 <p className="text-xs text-[#75647e] mt-1">
-                  {homeSearchItems.length} available item{homeSearchItems.length === 1 ? '' : 's'}
+                  {homeSearchItems.length} listing{homeSearchItems.length === 1 ? '' : 's'}
                   {query ? ` for “${query}”` : ''}
                 </p>
               </div>
@@ -2045,7 +1653,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                     item={item}
                     purchased={purchasedItems.includes(item.id)}
                     pending={pendingExchangeItemIds.includes(item.id)}
-                    canAfford={coinBalance >= item.coinCost}
+                    ownListing={isOwnedByUser(item.ownerEmail)}
                     onBuy={() => buyWithCoins(item)}
                     onFoundationRequest={() => requestThroughFoundation(item)}
                     foundationRequested={foundationRequestedItemIds.includes(item.id)}
@@ -2056,7 +1664,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center bg-[#ffffff] border border-[#eadff0] rounded-3xl">
-                <p className="font-display font-600 text-[#75647e] text-sm">No equipment matches these filters.</p>
+                <p className="font-display font-600 text-[#75647e] text-sm">{allListings.some(item => item.status === 'active') ? 'No equipment matches these filters.' : 'No equipment has been listed yet.'}</p>
               </div>
             )}
             </div>
@@ -2365,7 +1973,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                               </svg>
                               <span className="text-[10px] leading-relaxed text-[#57445f]">{donation.location}</span>
                             </div>
-                            {donation.donor === user.name && (
+                            {isOwnDonation(donation) && (
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2383,17 +1991,17 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#eee3f1]">
                         <button
                           onClick={() => openChatWith(donation.donor, donation.avatar, donation.sport)}
-                          disabled={donation.donor === user.name}
+                          disabled={isOwnDonation(donation)}
                           className="flex items-center gap-2 text-left disabled:cursor-default"
-                          aria-label={donation.donor === user.name ? 'Your donation' : `Chat with ${donation.donor}`}
+                          aria-label={isOwnDonation(donation) ? 'Your donation' : `Chat with ${donation.donor}`}
                         >
                           <span className="w-8 h-8 rounded-full bg-[#f3e8ff] flex items-center justify-center text-[10px] font-display font-800 text-[#7c3aed]">{donation.avatar}</span>
                           <span>
-                            <span className="block text-[10px] text-[#a28da9]">{donation.donor === user.name ? 'Donated by you' : 'Donated by'}</span>
+                            <span className="block text-[10px] text-[#a28da9]">{isOwnDonation(donation) ? 'Donated by you' : 'Donated by'}</span>
                             <span className="block text-xs font-700 text-[#241335]">{donation.donor}</span>
                           </span>
                         </button>
-                        {donation.donor !== user.name && (
+                        {!isOwnDonation(donation) && (
                           <button onClick={() => openChatWith(donation.donor, donation.avatar, donation.sport)} className="rounded-full bg-[#faf5ff] px-4 py-2 text-[10px] font-700 text-[#7c3aed] hover:bg-[#f3e8ff] transition-colors">Chat</button>
                         )}
                       </div>
@@ -2531,9 +2139,9 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                     <div className="flex items-start gap-4">
                       <button
                         onClick={() => openChatWith(request.author, request.avatar, request.sport)}
-                        disabled={request.author === user.name}
+                        disabled={isOwnedByUser(request.ownerEmail)}
                         className="w-10 h-10 rounded-full bg-[#f3e8ff] flex items-center justify-center flex-none text-xs font-display font-800 text-[#7c3aed] hover:ring-2 hover:ring-[#f0abfc] disabled:hover:ring-0 transition-shadow"
-                        aria-label={request.author === user.name ? 'Your request' : `Chat with ${request.author}`}
+                        aria-label={isOwnedByUser(request.ownerEmail) ? 'Your request' : `Chat with ${request.author}`}
                       >
                         {request.avatar}
                       </button>
@@ -2547,7 +2155,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                         </div>
                         <h3 className="font-display font-800 text-lg text-[#241335] mt-3">{request.item}</h3>
                         <p className="text-xs leading-relaxed text-[#75647e] mt-1">{request.note}</p>
-                        {request.author !== user.name && (
+                        {!isOwnedByUser(request.ownerEmail) && (
                           <button onClick={() => openChatWith(request.author, request.avatar, request.sport)} className="mt-4 rounded-full border border-[#e9d5ff] px-4 py-2 text-[10px] font-700 text-[#7c3aed] hover:bg-[#faf5ff] transition-colors">I can donate this · Chat</button>
                         )}
                       </div>
@@ -2574,7 +2182,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               <h1 className="font-display font-900 text-4xl text-[#241335] mt-2">History</h1>
               <p className="text-xs text-[#75647e] mt-2">
                 {activeScreen === 'donating' ? `${ownDonations.length} items in process of donating` : activeScreen === 'bought'
-                  ? `${BOUGHT_ITEMS.length + purchasedItems.length} items · ${totalSpent.toLocaleString()} coins spent`
+                  ? `${purchaseCount} items · ${totalSpent.toLocaleString()} coins spent`
                   : `${completedSalesCount} items · ${totalEarned.toLocaleString()} coins earned`}
               </p>
             </div>
@@ -2644,12 +2252,12 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               <h2 className="font-display text-lg font-800 text-amber-950">Pending Community Exchanges</h2>
               <p className="mt-1 text-xs text-amber-800">Complete an exchange only after the equipment handoff. Coins do not change for canceled or incomplete exchanges.</p>
               <div className="mt-4 space-y-3">
-                {[...MARKETPLACE_ITEMS, ...userEquipmentListings].filter(item => pendingExchangeItemIds.includes(item.id)).map(item => (
+                {allListings.filter(item => pendingExchangeItemIds.includes(item.id)).map(item => (
                   <div key={item.id} className="flex flex-col gap-3 rounded-xl bg-white p-4 sm:flex-row sm:items-center">
                     <img src={item.image} alt="" className="h-16 w-16 rounded-lg object-cover" />
                     <div className="min-w-0 flex-1">
                       <div className="font-display text-sm font-700 text-[#241335]">{item.name}</div>
-                      <div className="mt-1 text-[10px] text-[#75647e]">{item.coinCost} representative coins · Meetup near {getSellerMeetupLocation(item.seller)}</div>
+                      <div className="mt-1 text-[10px] text-[#75647e]">{item.coinCost} representative coins · Meetup near {item.meetupArea || 'area shared in chat'}</div>
                     </div>
                     <div className="flex gap-2">
                       <button onClick={() => completeCommunityExchange(item)} className="rounded-xl brand-gradient px-4 py-2.5 text-[10px] font-700 text-white">Mark completed</button>
@@ -2661,25 +2269,12 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
             </div>
           )}
 
-          <div className="grid grid-cols-1 min-[430px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-            {activeScreen !== 'donating' && items.map(item => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                mode={activeScreen}
-                onChat={() => {
-                  const contact = activeScreen === 'sold' ? item.buyer : item.seller
-                  if (contact) openChatWith(contact, contact.split(' ').map(part => part[0]).join(''), item.sport)
-                }}
-                onViewImage={() => setImageViewer({ title: item.name, images: [item.image], index: 0 })}
-                meetupLocation={activeScreen === 'sold' ? user.location : getSellerMeetupLocation(item.seller)}
-                markedSold={markedSoldItemIds.includes(item.id)}
-                onToggleSold={() => setMarkedSoldItemIds(current => current.includes(item.id)
-                  ? current.filter(id => id !== item.id)
-                  : [...current, item.id])}
-              />
-            ))}
-          </div>
+          {activeScreen === 'bought' && purchaseCount === 0 && pendingExchangeItemIds.length === 0 && (
+            <p className="rounded-2xl border border-[#eadff0] bg-white p-5 text-sm text-[#75647e]">No purchases yet.</p>
+          )}
+          {activeScreen === 'sold' && completedSalesCount === 0 && (
+            <p className="rounded-2xl border border-[#eadff0] bg-white p-5 text-sm text-[#75647e]">No completed sales yet.</p>
+          )}
           {activeScreen === 'sold' && userEquipmentListings.some(item => item.status === 'completed') && (
             <>
               <h2 className="mt-9 mb-4 font-display text-xl font-800 text-[#241335]">Completed equipment listings</h2>
@@ -2704,13 +2299,12 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
             <>
               <h2 className="font-display font-800 text-xl text-[#241335] mt-9 mb-4">Recent marketplace purchases</h2>
               <div className="grid grid-cols-1 min-[430px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                {[...MARKETPLACE_ITEMS, ...userEquipmentListings].filter(item => purchasedItems.includes(item.id)).map(item => (
+                {allListings.filter(item => purchasedItems.includes(item.id)).map(item => (
                   <MarketplaceCard
                     key={item.id}
                     item={item}
                     purchased
                     pending={false}
-                    canAfford
                     onBuy={() => {}}
                     onFoundationRequest={() => requestThroughFoundation(item)}
                     foundationRequested={foundationRequestedItemIds.includes(item.id)}
@@ -2756,13 +2350,6 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               </div>
             </div>
 
-            <div className="mt-10 pt-8 border-t border-[#e9d5ff]">
-              <h2 className="font-display font-800 text-2xl text-[#241335]">One balance. Every trade.</h2>
-              <p className="text-xs text-[#57445f] mt-1 max-w-lg">GearUp uses coins for every marketplace purchase, so there are no cash prices or separate equipment shop.</p>
-              <button onClick={() => navigateTo('search')} className="mt-5 rounded-full brand-gradient px-6 py-3 text-sm font-display font-700 text-white hover:brightness-110 transition-colors">
-                Browse community gear
-              </button>
-            </div>
           </div>
         </section>}
 
@@ -2802,6 +2389,9 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
               </div>
             </aside>
 
+            {conversations.length === 0 && (
+              <p className="p-5 text-sm text-[#75647e]">No conversations yet. Start a chat from an equipment listing.</p>
+            )}
             {conversations.filter(conversation => conversation.id === selectedConversation).map(conversation => (
               <div key={conversation.id} className="flex flex-col min-h-[440px]">
                 <div className="flex items-center gap-3 px-5 py-4 border-b border-[#eadff0]">
@@ -2978,9 +2568,9 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           <div className="p-6 sm:p-10">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <ProfileStat label="Coins available" value={coinBalance.toLocaleString()} detail="Ready to spend" />
-              <ProfileStat label="Equipment bought" value={(BOUGHT_ITEMS.length + purchasedItems.length).toString()} detail={`${totalSpent.toLocaleString()} coins spent`} />
+              <ProfileStat label="Equipment bought" value={purchaseCount.toString()} detail={`${totalSpent.toLocaleString()} coins spent`} />
               <ProfileStat label="Equipment sold" value={completedSalesCount.toString()} detail={`${totalEarned.toLocaleString()} coins earned`} />
-              <ProfileStat label="Total trades" value={(BOUGHT_ITEMS.length + completedSalesCount + purchasedItems.length).toString()} detail="Active since 2026" />
+              <ProfileStat label="Total trades" value={(purchaseCount + completedSalesCount).toString()} detail="Completed exchanges" />
             </div>
 
             <div className="mt-6 rounded-2xl border border-[#d8c8de] bg-gradient-to-r from-[#fff7ed] via-[#fdf2f8] to-[#f5f3ff] p-5">
@@ -3237,8 +2827,9 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
       )}
 
       <nav className="mobile-safe-nav fixed bottom-0 inset-x-0 z-30 bg-[#ffffff]/95 backdrop-blur-xl border-t border-[#e8d9ee] px-1.5 sm:px-2 pt-2">
-        <div className="grid grid-cols-6 max-w-4xl mx-auto">
+        <div className="grid grid-cols-7 max-w-4xl mx-auto">
           <BottomNavButton label="Home" icon="home" active={activeScreen === 'home'} onClick={() => navigateTo('home')} />
+          <BottomNavButton label="Marketplace" icon="bought" active={activeScreen === 'marketplace'} onClick={() => { setQuery(''); navigateTo('marketplace') }} />
           <BottomNavButton label="Community" icon="donations" active={activeScreen === 'donations'} onClick={() => navigateTo('donations')} />
           <BottomNavButton label="History" icon="sold" active={activeScreen === 'bought' || activeScreen === 'sold' || activeScreen === 'donating'} onClick={() => navigateTo(tab)} />
           <BottomNavButton label="Coins" icon="coins" active={activeScreen === 'coins'} onClick={() => navigateTo('coins')} />
@@ -3307,11 +2898,11 @@ function BottomNavButton({ label, icon, active = false, onClick }: {
   )
 }
 
-function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundationRequest, foundationRequested, onChat, onViewImage }: {
+function MarketplaceCard({ item, purchased, pending, ownListing = false, onBuy, onFoundationRequest, foundationRequested, onChat, onViewImage }: {
   item: MarketplaceItem
   purchased: boolean
   pending: boolean
-  canAfford: boolean
+  ownListing?: boolean
   onBuy: () => void
   onFoundationRequest: () => void
   foundationRequested: boolean
@@ -3352,8 +2943,9 @@ function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundat
             <path d="M8 14s4.5-4 4.5-7.5a4.5 4.5 0 1 0-9 0C3.5 10 8 14 8 14Z" stroke="currentColor" strokeWidth="1.3" />
             <circle cx="8" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
           </svg>
-          Meetup near {getSellerMeetupLocation(item.seller)}
+          Meetup near {item.meetupArea || 'area shared in chat'}
         </div>
+        {ownListing ? <p className="mt-3 text-xs font-600 text-[#75647e]">Your listing</p> : <>
         <button onClick={onChat} className="text-[9px] text-[#75647e] hover:text-[#7c3aed] mt-1 mb-3 transition-colors">
           Sold by <span className="font-700">{item.seller ?? 'a GearUp athlete'}</span> · Chat
         </button>
@@ -3380,6 +2972,7 @@ function MarketplaceCard({ item, purchased, pending, canAfford, onBuy, onFoundat
             {foundationRequested ? 'Foundation request approved' : 'Request through GearUp Foundation?'}
           </button>
         </div>
+        </>}
       </div>
     </div>
   )
@@ -3391,94 +2984,6 @@ function ProfileStat({ label, value, detail }: { label: string; value: string; d
       <div className="text-[10px] sm:text-xs uppercase tracking-wide text-[#75647e]">{label}</div>
       <div className="font-display font-800 text-2xl sm:text-3xl text-[#241335] mt-2">{value}</div>
       <div className="text-[10px] sm:text-xs text-[#8b5cf6] mt-1">{detail}</div>
-    </div>
-  )
-}
-
-function ItemCard({ item, mode, onChat, onViewImage, meetupLocation, markedSold, onToggleSold }: {
-  item: Item
-  mode: 'bought' | 'sold'
-  onChat: () => void
-  onViewImage: () => void
-  meetupLocation: string
-  markedSold: boolean
-  onToggleSold: () => void
-}) {
-  return (
-    <div className="bg-[#ffffff] border border-[#eadff0] rounded-2xl overflow-hidden hover:border-[#8b5cf6]/60 transition-all group">
-      <div className="relative overflow-hidden h-32 sm:h-44 bg-[#f8f0fa]">
-        <button type="button" onClick={onViewImage} className="absolute inset-0 h-full w-full" aria-label={`View image of ${item.name}`}>
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        </button>
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#ffffff]/80 to-transparent" />
-        <span className="pointer-events-none absolute top-2 left-2 sm:top-3 sm:left-3 text-[9px] sm:text-[10px] font-medium text-[#57445f] bg-[#fffdf9]/75 backdrop-blur-sm px-2 py-1 rounded-full border border-[#eadff0]">
-          {item.sport}
-        </span>
-        <span className={`pointer-events-none absolute bottom-2 left-2 sm:bottom-3 sm:left-3 text-[9px] sm:text-[10px] font-medium ${CONDITION_COLOR[item.condition] ?? 'text-[#75647e]'} bg-[#fffdf9]/75 backdrop-blur-sm px-2 py-1 rounded-full border border-[#eadff0]`}>
-          {item.condition}
-        </span>
-        <button type="button" onClick={onViewImage} className="absolute bottom-2 right-2 rounded-full bg-[#241335]/85 px-2.5 py-1.5 text-[9px] font-700 text-white backdrop-blur-sm hover:bg-[#241335] sm:bottom-3 sm:right-3">
-          View
-        </button>
-      </div>
-
-      <div className="p-3 sm:p-4">
-        <h3 className="font-display font-600 text-xs sm:text-sm text-[#241335] leading-tight mb-2 line-clamp-2">{item.name}</h3>
-        <div className="text-[9px] text-[#75647e] mb-2">{item.gender} · Size {item.size}</div>
-        <div className="mb-3 flex items-center gap-1.5 rounded-lg bg-[#f8f0fa] px-2.5 py-2 text-[9px] font-600 text-[#57445f]">
-          <svg viewBox="0 0 16 16" fill="none" className="h-3.5 w-3.5 flex-none text-[#8b5cf6]" aria-hidden="true">
-            <path d="M8 14s4.5-4 4.5-7.5a4.5 4.5 0 1 0-9 0C3.5 10 8 14 8 14Z" stroke="currentColor" strokeWidth="1.3" />
-            <circle cx="8" cy="6.5" r="1.5" stroke="currentColor" strokeWidth="1.3" />
-          </svg>
-          Meetup near {meetupLocation}
-        </div>
-
-        {mode === 'bought' && item.seller && (
-          <button onClick={onChat} className="flex items-center gap-2 mb-3 text-left group/profile">
-            <div className="w-5 h-5 rounded-full bg-[#f3e8ff] border border-[#8b5cf6]/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-[8px] font-display font-700 text-[#8b5cf6]">{item.seller.split(' ')[0][0]}</span>
-            </div>
-            <div className="min-w-0">
-              <span className="text-[9px] text-[#75647e]">Sold by</span>
-              <span className="text-[10px] sm:text-xs font-medium text-[#57445f] group-hover/profile:text-[#7c3aed] ml-1">{item.seller} · Chat</span>
-            </div>
-          </button>
-        )}
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-1">
-              <CoinIcon className="w-4 h-4" />
-              <span className="font-display font-700 text-sm sm:text-base text-[#241335]">
-                {mode === 'sold' ? '+' : '−'}{item.coins.toLocaleString()} coins
-              </span>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-[10px] text-[#75647e]">{item.date}</div>
-            {mode === 'sold' && item.buyer && (
-              <div className="text-[10px] text-[#75647e] mt-0.5">to {item.buyer}</div>
-            )}
-          </div>
-        </div>
-        {mode === 'sold' && (
-          <button
-            type="button"
-            onClick={onToggleSold}
-            className={`mt-3 w-full rounded-xl border py-2.5 text-[10px] font-700 transition-colors ${
-              markedSold
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                : 'border-[#c4b5fd] bg-[#faf5ff] text-[#7c3aed] hover:bg-[#f3e8ff]'
-            }`}
-          >
-            {markedSold ? 'Sold ✓ · Mark as available' : 'Mark this item as sold'}
-          </button>
-        )}
-      </div>
     </div>
   )
 }
