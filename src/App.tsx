@@ -253,7 +253,7 @@ function EquipmentValuation({ cash, coins, ownerValue, onOwnerValueChange }: {
       <h3 className="font-display font-800 text-[#241335]">Estimated equipment value</h3>
       <div className="mt-3 grid grid-cols-2 gap-3" aria-live="polite">
         <div className="rounded-xl bg-white p-3"><div className="text-xs text-[#75647e]">App coins</div><div className="mt-1 text-xl font-800 text-[#7c3aed]">{coins.toLocaleString()} coins</div></div>
-        <div className="rounded-xl bg-white p-3"><div className="text-xs text-[#75647e]">Real-world value</div><div className="mt-1 text-xl font-800 text-[#241335]">${cash.toFixed(2)} USD</div></div>
+        <div className="rounded-xl bg-white p-3"><div className="text-xs text-[#75647e]">Estimated cash value</div><div className="mt-1 text-xl font-800 text-[#241335]">${cash.toFixed(2)} USD</div></div>
       </div>
       <p className="mt-3 text-[11px] leading-relaxed text-[#75647e]">Sample estimate based on equipment type and condition. Photos are not analyzed by AI. Each $1 of estimated value suggests 3 community coins; coins cannot be redeemed for cash.</p>
       <label className="mt-4 flex items-center gap-2 text-xs font-700 text-[#57445f]">
@@ -422,7 +422,7 @@ const MARKETPLACE_ITEMS: MarketplaceItem[] = [
   },
   {
     id: 112,
-    name: 'All-Weather American Football',
+    name: 'American Football for All Weather',
     sport: 'American Football',
     coinCost: 340,
     image: 'https://images.unsplash.com/photo-1566577739112-5180d4bf9390?w=500&h=400&fit=crop&auto=format',
@@ -513,14 +513,14 @@ const INITIAL_WISHLIST: WishlistRequest[] = [
     avatar: 'MC',
     item: 'Women’s road cycling shoes, size 7',
     sport: 'Cycling',
-    note: 'Looking for a lightly used pair with three-bolt cleat compatibility.',
+    note: 'Looking for a lightly used pair with compatibility with cleats that use three bolts.',
     posted: '12 min ago',
   },
   {
     id: 2,
     author: 'Eli Thompson',
     avatar: 'ET',
-    item: 'Left-handed baseball glove',
+    item: 'Baseball glove for a lefty',
     sport: 'Baseball',
     note: 'Youth size preferred. Open to any trusted brand.',
     posted: '1 hr ago',
@@ -588,7 +588,7 @@ const INITIAL_DONATIONS: DonationItem[] = [
     sport: 'Training',
     condition: 'Good',
     location: 'North Park Field House · 4.1 mi',
-    note: 'Ideal for a community club, camp, or after-school program.',
+    note: 'Ideal for a community club, camp, or program that runs after school.',
     donor: 'Priya Malik',
     avatar: 'PM',
     image: 'https://images.unsplash.com/photo-1646504632442-6cacb1858bd6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHx1c2VkJTIwc3BvcnRzJTIwZXF1aXBtZW50JTIwZm9vdGJhbGwlMjB0ZW5uaXMlMjBiYXNrZXRiYWxsJTIwZG9uYXRpb258ZW58MXx8fHwxNzkxNzY4MTMyfDA&ixlib=rb-4.1.0&q=80&w=1080',
@@ -627,7 +627,7 @@ export default function App() {
   const [view, setView] = useState<View>('landing')
   const [tab, setTab] = useState<Tab>('bought')
   const [user, setUser] = useState<User>(MOCK_USER)
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', location: '' })
+  const [formData, setFormData] = useState<AuthFormData>({ firstName: '', lastName: '', email: '', password: '', location: '' })
   const [authError, setAuthError] = useState('')
 
   useEffect(() => {
@@ -665,16 +665,15 @@ export default function App() {
       return
     }
 
-    const emailName = email
-      .split('@')[0]
-      .replace(/[._-]+/g, ' ')
-      .replace(/\b\w/g, letter => letter.toUpperCase())
-    const name = formData.name.trim() || emailName || 'GearUp Athlete'
-    const avatar = name
-      .split(/\s+/)
-      .slice(0, 2)
-      .map(part => part[0]?.toUpperCase())
-      .join('')
+    const firstName = formData.firstName.trim()
+    const lastName = formData.lastName.trim()
+    if (!firstName || !lastName) {
+      setAuthError('Enter your first and last name.')
+      return
+    }
+
+    const name = [firstName, lastName].join(' ')
+    const avatar = [firstName, lastName].map(part => Array.from(part)[0].toUpperCase()).join('')
 
     const newUser: User = {
       ...MOCK_USER,
@@ -795,14 +794,8 @@ function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () =>
         style={{ background: 'radial-gradient(ellipse, #8b5cf6 0%, transparent 70%)' }} />
 
       {/* Header */}
-      <header className="relative z-10 px-4 pt-5 sm:px-8 sm:pt-8 flex items-center justify-between max-w-7xl mx-auto w-full">
+      <header className="relative z-10 px-4 pt-5 sm:px-8 sm:pt-8 flex items-center max-w-7xl mx-auto w-full">
         <PlaymoreLogo size="md" />
-        <button
-          onClick={onSignIn}
-          className="text-sm font-medium text-[#75647e] hover:text-[#241335] transition-colors"
-        >
-          Sign in
-        </button>
       </header>
 
       {/* Hero */}
@@ -826,7 +819,7 @@ function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () =>
             onClick={onSignUp}
             className="px-8 py-4 brand-gradient text-white font-display font-700 text-base rounded-xl hover:brightness-110 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-[#8b5cf6]/20"
           >
-            Get started — it's free
+            Get started for free
           </button>
           <button
             onClick={onSignIn}
@@ -835,32 +828,33 @@ function Landing({ onSignIn, onSignUp }: { onSignIn: () => void; onSignUp: () =>
             Sign in
           </button>
         </div>
-
-        {/* Stats row */}
-        <div className="mt-14 grid w-full max-w-md grid-cols-3 gap-3 sm:mt-20 sm:flex sm:max-w-none sm:gap-16 sm:items-center">
-          {[
-            { value: '12,400+', label: 'Items traded' },
-            { value: '3,800+', label: 'Active athletes' },
-            { value: '18 sports', label: 'Categories' },
-          ].map(({ value, label }) => (
-            <div key={label} className="text-center">
-              <div className="font-display font-800 text-lg sm:text-2xl text-[#241335]">{value}</div>
-              <div className="text-[9px] sm:text-xs text-[#75647e] mt-1 tracking-wide uppercase">{label}</div>
-            </div>
-          ))}
-        </div>
+        <ul aria-label="GearUp features" className="mt-10 grid w-full max-w-3xl gap-3 text-left sm:grid-cols-3">
+          <li className="rounded-2xl border border-[#eadff0] bg-white p-4">
+            <p className="font-display font-700 text-[#241335]">Find sports gear</p>
+            <p className="mt-1 text-sm text-[#75647e]">Browse equipment by sport and coin price.</p>
+          </li>
+          <li className="rounded-2xl border border-[#eadff0] bg-white p-4">
+            <p className="font-display font-700 text-[#241335]">Earn and spend coins</p>
+            <p className="mt-1 text-sm text-[#75647e]">Sell gear you no longer use and put the coins toward your next find.</p>
+          </li>
+          <li className="rounded-2xl border border-[#eadff0] bg-white p-4">
+            <p className="font-display font-700 text-[#241335]">Donate equipment</p>
+            <p className="mt-1 text-sm text-[#75647e]">Give spare gear to someone who can use it.</p>
+          </li>
+        </ul>
       </main>
 
       {/* Bottom strip */}
       <div className="relative z-10 border-t border-[#eadff0] px-4 sm:px-8 py-5 flex items-center justify-center text-center">
-        <p className="text-[10px] sm:text-xs text-[#75647e]">© 2026 GearUp. The sports equipment exchange.</p>
+        <p className="font-display font-700 text-sm sm:text-base text-[#75647e]">Old gear. New game.</p>
       </div>
     </div>
   )
 }
 
 interface AuthFormData {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   password: string
   location: string
@@ -904,34 +898,37 @@ function AuthPage({
   const showPasswordError = isSignUp && passwordTouched && !passwordIsValid
 
   return (
-    <div className="theme-page-background min-h-screen flex flex-col items-center justify-center px-4 py-16 sm:px-6 sm:py-24 relative overflow-hidden">
+    <div className="theme-page-background min-h-dvh flex flex-col items-center justify-center px-3 py-3 sm:px-6 lg:py-16 relative overflow-hidden">
       <div className="absolute top-[-30%] right-[-10%] w-[500px] h-[500px] rounded-full opacity-[0.05]"
         style={{ background: 'radial-gradient(ellipse, #8b5cf6 0%, transparent 70%)' }} />
 
-      <button
-        onClick={onBack}
-        className="absolute top-5 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-sm text-[#75647e] hover:text-[#241335] transition-colors"
-      >
-        <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
-          <path d="M10 13L5 8l5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        Back
-      </button>
-
       <div className="w-full max-w-5xl">
-        <div className="mb-8 flex justify-center lg:justify-start">
+        <div className="relative mb-2 flex min-h-11 items-center justify-center lg:mb-8 lg:justify-start">
+          <button
+            onClick={onBack}
+            className="absolute z-10 left-0 lg:left-auto lg:right-0 flex min-h-11 items-center gap-1 px-1 text-sm text-[#75647e] hover:text-[#241335] transition-colors"
+          >
+            <svg viewBox="0 0 16 16" fill="none" className="w-4 h-4">
+              <path d="M10 13L5 8l5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Back
+          </button>
           <PlaymoreLogo size="md" />
         </div>
 
         <div className="grid lg:grid-cols-[1.1fr_0.9fr] bg-[#ffffff] border border-[#eadff0] rounded-3xl lg:overflow-hidden shadow-xl shadow-slate-200/40">
-          <section className="relative hidden bg-gradient-to-br from-[#241335] via-[#5b217a] to-[#0e7490] p-8 sm:p-10 text-white overflow-hidden lg:block">
+          <section className="relative rounded-t-3xl bg-gradient-to-br from-[#241335] via-[#5b217a] to-[#0e7490] px-4 py-3 text-white overflow-hidden lg:rounded-none lg:p-10">
             <div className="absolute -right-16 -top-16 w-56 h-56 rounded-full bg-[#ec4899]/20 blur-3xl" />
-            <div className="relative">
+            <div className="relative lg:hidden">
+              <h1 className="font-display text-xl font-900 leading-tight">{isSignUp ? 'Welcome to GearUp' : 'Welcome back'}</h1>
+              <p className="mt-1 max-w-md text-sm leading-snug text-[#f3e8ff]">Sell sports gear to earn coins, spend them on equipment, and chat with nearby athletes.</p>
+            </div>
+            <div className="relative hidden lg:block">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/10 border border-white/15 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-[#e9d5ff]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#60a5fa]" />
-              The coin-powered sports community
+              A sports community built around coins
             </span>
-            <h1 className="font-display font-900 text-4xl sm:text-5xl leading-[0.95] mt-6">No cash.<br />Just more <span className="text-[#60a5fa]">game.</span></h1>
+            <h1 className="font-display font-900 text-4xl sm:text-5xl leading-[0.95] mt-6">{isSignUp ? 'Welcome to GearUp' : 'Welcome back'}</h1>
             <p className="text-sm leading-relaxed text-[#dfd2e4] mt-5 max-w-md">GearUp turns the gear you no longer use into coins, new equipment, and real connections with athletes around you.</p>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-1 gap-3 mt-8">
@@ -968,30 +965,18 @@ function AuthPage({
               ))}
             </div>
 
-            <div className="mt-5 rounded-2xl bg-white text-[#241335] p-4 shadow-xl shadow-black/10">
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-2">
-                  {['MC', 'AT', 'PM'].map(initials => (
-                    <span key={initials} className="w-7 h-7 rounded-full bg-[#f3e8ff] border-2 border-white flex items-center justify-center text-[8px] font-800 text-[#7c3aed]">{initials}</span>
-                  ))}
-                </div>
-                <span className="text-[10px] text-[#75647e]">3,800+ athletes trading and playing</span>
-              </div>
-              <p className="text-xs leading-relaxed mt-3">“I came for a used racket and found a Sunday tennis partner.”</p>
-              <div className="text-[9px] font-700 text-[#8b5cf6] mt-2">Maya · GearUp member</div>
-            </div>
             </div>
           </section>
 
-          <div className="p-5 sm:p-10">
-          <div className="inline-flex items-center gap-2 rounded-full bg-[#faf5ff] px-3 py-1.5 mb-5">
+          <div className="p-4 lg:p-10">
+          <div className="hidden lg:inline-flex items-center gap-2 rounded-full bg-[#faf5ff] px-3 py-1.5 mb-5">
             <CoinIcon className="w-5 h-5" />
             <span className="text-[10px] font-700 text-[#7c3aed]">100% coins · 0% real money</span>
           </div>
-          <h2 className="font-display font-800 text-2xl text-[#241335] mb-1">
-            {isSignUp ? 'Create account' : 'Welcome back'}
+          <h2 className="font-display font-800 text-xl text-[#241335] mb-3 lg:mb-1 lg:text-2xl">
+            {isSignUp ? 'Create account' : 'Sign in'}
           </h2>
-          <p className="text-sm text-[#75647e] mb-8">
+          <p className="hidden text-sm text-[#75647e] lg:mb-8 lg:block">
             {isSignUp ? 'Join athletes sharing gear, coins, and good games.' : 'Your gear, coins, and community are waiting.'}
           </p>
 
@@ -1004,45 +989,54 @@ function AuthPage({
               }
               onSubmit(event)
             }}
-            className="space-y-4"
+            className="space-y-2.5 lg:space-y-4"
           >
             {isSignUp && (
-              <div>
-                <label className="block text-xs font-medium text-[#75647e] mb-2 uppercase tracking-wide">Full name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Jordan Mercer"
-                  value={formData.name}
-                  onChange={e => onChange({ ...formData, name: e.target.value })}
-                  className="w-full bg-[#fffdf9] border border-[#eadff0] rounded-xl px-4 py-3 text-[#241335] text-sm placeholder-[#d8c8de] focus:outline-none focus:border-[#8b5cf6] transition-colors"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  { field: 'firstName', label: 'First name', autoComplete: 'given-name' },
+                  { field: 'lastName', label: 'Last name', autoComplete: 'family-name' },
+                ] as const).map(({ field, label, autoComplete }) => (
+                  <div key={field}>
+                    <label htmlFor={field} className="mb-1 block text-xs font-medium text-[#75647e] lg:mb-2">{label}</label>
+                    <input
+                      id={field}
+                      name={field}
+                      type="text"
+                      autoComplete={autoComplete}
+                      required
+                      value={formData[field]}
+                      onChange={e => onChange({ ...formData, [field]: e.target.value })}
+                      className="min-h-11 w-full rounded-xl border border-[#eadff0] bg-[#fffdf9] px-3 text-base text-[#241335] focus:outline-none focus:border-[#8b5cf6]"
+                    />
+                  </div>
+                ))}
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-[#75647e] mb-2 uppercase tracking-wide">Email</label>
+              <label className="block text-xs font-medium text-[#75647e] mb-1 lg:mb-2">Email</label>
               <input
                 type="email"
                 required
                 placeholder="you@example.com"
                 value={formData.email}
                 onChange={e => onChange({ ...formData, email: e.target.value })}
-                className="w-full bg-[#fffdf9] border border-[#eadff0] rounded-xl px-4 py-3 text-[#241335] text-sm placeholder-[#d8c8de] focus:outline-none focus:border-[#8b5cf6] transition-colors"
+                className="w-full bg-[#fffdf9] border border-[#eadff0] rounded-xl px-4 min-h-11 py-2.5 text-[#241335] text-base placeholder-[#d8c8de] focus:outline-none focus:border-[#8b5cf6] transition-colors"
               />
             </div>
             {isSignUp && (
               <div>
-                <label className="block text-xs font-medium text-[#75647e] mb-2 uppercase tracking-wide">Your meetup area</label>
+                <label className="block text-xs font-medium text-[#75647e] mb-1 lg:mb-2">Your meetup area</label>
                 <LocationAutocomplete
                   value={formData.location}
                   onChange={location => onChange({ ...formData, location })}
                   inputClassName="w-full bg-[#fffdf9] border border-[#eadff0] rounded-xl py-3 pl-11 pr-10 text-[#241335] text-sm placeholder-[#a28da9] focus:outline-none focus:border-[#8b5cf6] transition-colors"
                 />
-                <p className="mt-2 text-xs leading-relaxed text-[#75647e]">Share a general area only—not your exact address. Buyers use this to plan a safe public meetup.</p>
+                <p className="mt-2 text-xs leading-relaxed text-[#75647e]">Use your general area for public meetups.</p>
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-[#75647e] mb-2 uppercase tracking-wide">Password</label>
+              <label className="block text-xs font-medium text-[#75647e] mb-1 lg:mb-2">Password</label>
               <input
                 type="password"
                 required
@@ -1056,7 +1050,7 @@ function AuthPage({
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
                 aria-describedby={isSignUp ? 'password-requirements' : undefined}
                 aria-invalid={showPasswordError}
-                className={`w-full bg-[#fffdf9] border rounded-xl px-4 py-3 text-[#241335] text-sm placeholder-[#d8c8de] focus:outline-none transition-colors ${
+                className={`w-full bg-[#fffdf9] border rounded-xl px-4 min-h-11 py-2.5 text-[#241335] text-base placeholder-[#d8c8de] focus:outline-none transition-colors ${
                   showPasswordError
                     ? 'border-red-400 focus:border-red-500'
                     : 'border-[#eadff0] focus:border-[#8b5cf6]'
@@ -1081,13 +1075,13 @@ function AuthPage({
 
             <button
               type="submit"
-              className="w-full mt-2 py-3 brand-gradient text-white font-display font-700 text-sm rounded-xl hover:brightness-110 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-[#8b5cf6]/20"
+              className="w-full min-h-11 py-2.5 brand-gradient text-white font-display font-700 text-sm rounded-xl hover:brightness-110 transition-all hover:scale-[1.01] active:scale-[0.99] shadow-lg shadow-[#8b5cf6]/20"
             >
               {isSignUp ? 'Create account' : 'Sign in'}
             </button>
           </form>
 
-          <p className="text-center text-xs text-[#75647e] mt-6">
+          <p className="text-center text-sm text-[#75647e] mt-2 lg:mt-6">
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button onClick={onSwitch} className="text-[#8b5cf6] hover:underline font-medium">
               {isSignUp ? 'Sign in' : 'Sign up'}
@@ -1251,7 +1245,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           const matchesPrice =
             priceFilter === 'All' ||
             (priceFilter === 'Under 250' && item.coinCost < 250) ||
-            (priceFilter === '250–500' && item.coinCost >= 250 && item.coinCost <= 500) ||
+            (priceFilter === '250 to 500' && item.coinCost >= 250 && item.coinCost <= 500) ||
             (priceFilter === '500+' && item.coinCost > 500)
           return matchesQuery && matchesSize && matchesGender && matchesSport && matchesCondition && matchesAvailability && matchesPrice
         })
@@ -1717,7 +1711,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                   <FilterGroup label="Sport" options={['All', ...SEARCH_CATEGORIES]} value={sportFilter} onChange={applySportFilter} />
                   <FilterGroup label="Condition" options={['All', 'Like New', 'Very Good', 'Good']} value={conditionFilter} onChange={setConditionFilter} />
                   <FilterGroup label="Availability" options={['All', 'Available', 'Purchased']} value={activityFilter} onChange={setActivityFilter} />
-                  <FilterGroup label="Coin price" options={['All', 'Under 250', '250–500', '500+']} value={priceFilter} onChange={setPriceFilter} />
+                  <FilterGroup label="Coin price" options={['All', 'Under 250', '250 to 500', '500+']} value={priceFilter} onChange={setPriceFilter} />
                   <FilterGroup label="Sort by" options={['Newest', 'Oldest', 'Price: low to high', 'Price: high to low']} value={sortFilter} onChange={setSortFilter} />
                 </div>
                 <div className="grid grid-cols-2 gap-3 p-5 border-t border-[#dfd2e4] bg-[#fff8fc]">
@@ -1760,18 +1754,22 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
             <h1 className="font-display font-900 text-4xl sm:text-6xl text-[#241335] leading-[0.92] tracking-tight mt-3">
               Good gear.<br /><span className="brand-text-gradient">More game.</span>
             </h1>
-            <p className="text-sm sm:text-base text-[#57445f] mt-4 max-w-sm">Trade the gear you have for the sports you love—and earn coins along the way.</p>
+            <p className="text-sm sm:text-base text-[#57445f] mt-4 max-w-sm">Trade the gear you have for the sports you love and earn coins along the way.</p>
           </div>
         </section>
 
-        <div className="mb-9">
-          <div className="bg-[#ffffff] border border-[#eadff0] rounded-2xl p-4 flex items-center gap-3">
-            <button onClick={() => navigateTo('donations')} className="w-full flex items-center gap-3 text-left">
-              <div className="w-10 h-10 rounded-full bg-[#f3e8ff] flex items-center justify-center text-[#7c3aed] font-display font-800">+</div>
-              <div><div className="font-display font-700 text-[#241335]">Donate your gear</div><div className="text-xs text-[#75647e] mt-1">Help someone else get in the game</div></div>
+        <section aria-label="GearUp features" className="mb-9 grid gap-3 sm:grid-cols-3">
+          {([
+            { screen: 'search', title: 'Find sports gear', description: 'Browse equipment by sport and coin price.' },
+            { screen: 'coins', title: 'Track your coins', description: 'Check your balance and see how you can earn coins.' },
+            { screen: 'donations', title: 'Donate your gear', description: 'Help someone else get in the game.' },
+          ] as const).map(({ screen, title, description }) => (
+            <button key={screen} type="button" onClick={() => navigateTo(screen)} className="rounded-2xl border border-[#eadff0] bg-white p-4 text-left transition-colors hover:border-[#8b5cf6] focus-visible:outline-2 focus-visible:outline-[#7c3aed]">
+              <span className="block font-display font-700 text-[#241335]">{title}</span>
+              <span className="mt-1 block text-xs text-[#75647e]">{description}</span>
             </button>
-          </div>
-        </div>
+          ))}
+        </section>
 
         <section className="mb-9 rounded-3xl border border-[#eadff0] bg-white p-4 sm:p-6">
           <button
@@ -1793,7 +1791,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
           {listingFormOpen && (
             <form onSubmit={publishEquipmentListing} className="mt-6 border-t border-[#eadff0] pt-6">
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[10px] leading-relaxed text-amber-800">
-                Demo mode: no AI image-recognition service is connected. Suggestions use the details you enter and sample valuation rules; they are not presented as real AI analysis.
+                Demo mode: no AI service for image recognition is connected. Suggestions use the details you enter and sample valuation rules; they are not presented as real AI analysis.
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div>
@@ -2035,7 +2033,7 @@ function Dashboard({ user, tab, onTabChange, onUpdateName, onUpdateProfileImage,
                 <FilterGroup label="Sport" options={['All', ...SEARCH_CATEGORIES]} value={sportFilter} onChange={applySportFilter} />
                 <FilterGroup label="Condition" options={['All', 'Like New', 'Very Good', 'Good']} value={conditionFilter} onChange={setConditionFilter} />
                 <FilterGroup label="Availability" options={['All', 'Available', 'Purchased']} value={activityFilter} onChange={setActivityFilter} />
-                <FilterGroup label="Coin price" options={['All', 'Under 250', '250–500', '500+']} value={priceFilter} onChange={setPriceFilter} />
+                <FilterGroup label="Coin price" options={['All', 'Under 250', '250 to 500', '500+']} value={priceFilter} onChange={setPriceFilter} />
                 <FilterGroup label="Sort by" options={['Newest', 'Oldest', 'Price: low to high', 'Price: high to low']} value={sortFilter} onChange={setSortFilter} />
               </div>}
 
